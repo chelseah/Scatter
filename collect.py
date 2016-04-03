@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 import os
 import re
 import commands
+import pickle
 def gather_run(rundir,nps,nele=8):
     initarr=np.zeros([int(nps),8])
     endarr=np.zeros([int(nps),8])
@@ -171,7 +172,7 @@ def output_status(statustotal):
     print 'three earth',np.where(necount==3)[0]+1
     print 'two earth',np.where(necount==2)[0]+1
     print 'one earth',np.where(necount==1)[0]+1
-    return
+    return [npcount,necount]
 
 def main():
     rmin=1
@@ -203,9 +204,10 @@ def main():
         plot_init_end(inittotal,endtotal)
 
         plot_end_survive(endtotal,nsteptotal)
-
-    output_status(npstatustotal)
     
+    npcount,necount=output_status(npstatustotal)
+    datadump=[inittotal,endtotal,nsteptotal,npstatustotal,npcount,necount]
+    pickle.dump(datadump,open('runsummary.pkl','w'))
     return
 
 if __name__=='__main__':
