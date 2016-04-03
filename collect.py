@@ -48,13 +48,22 @@ def gather_run(rundir,nps,nele=8):
     #print outputs
     lensum=len(outputs.split('\n'))
     #print lensum
-    print infile,lensum,outputs
+    #print infile,lensum,outputs
     if outputs=="":
         return [initarr,endarr,nsteparr,npstatus]
     for i in xrange(lensum):
-        
-        n,sc=classify(outputs.split('\n')[i])
-        npstatus[n-1]=sc
+        line = outputs.split('\n')[i]
+        n,sc=classify(line)
+        if sc==1: 
+            nc=int(line.split()[4][2])
+            if nsteparr[n-1]<nsteparr[nc-1]:
+                npstatus[n-1]=sc
+            else:
+                npstatus[nc-1]=sc
+        else:
+            npstatus[n-1]=sc
+    
+    
 
     return [initarr,endarr,nsteparr,npstatus]
 
@@ -67,11 +76,14 @@ def classify(line):
         sc=3
         return [n,sc]
     if 'hit' in line:
-        nc=int(line.split()[4][2])
-        if nc<n:
-            return [n,1]
-        else:
-            return [nc,1]
+        if 'ast' in line:
+            return [n,0]
+        return [n,1]
+        #nc=int(line.split()[4][2])
+        #if nc<n:
+        #    return [n,1]
+        #else:
+        #    return [nc,1]
     return
 
 def output_status(statustotal):
@@ -163,7 +175,7 @@ def output_status(statustotal):
 
 def main():
     rmin=1
-    rmax=51
+    rmax=151
     nps=6
     inpath="/home/xuhuang/Project/data/Kepler/scatt_kepler/"
     inittotal=np.zeros([rmax-rmin,nps,8])
