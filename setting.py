@@ -7,4 +7,5 @@ a_max_min=3.
 k_Hill=3.
 t_orb=1.e7
 N_pl=6
+num_runs = 4
 basename='/mnt/raid-cita/cpetrovi/scatt_kepler/'
