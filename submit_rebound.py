@@ -37,10 +37,11 @@ def submit(abspath,subfile):
     fout.write('#PBS -q workq\n')
     fout.write('#PBS -r n \n')
     fout.write('#PBS -l walltime=48:00:00\n')
-    fout.write('#PBS -N scatt_kepler\n')
+    fout.write('#PBS -N rebound_kepler\n')
     fout.write('cd %s\n' % abspath)
-    fout.write('./mercury6 >& /dev/null \n')
-    fout.write('./element6 \n')
+    fout.write('./submit_rebound')
+    #fout.write('./mercury6 >& /dev/null \n')
+    #fout.write('./element6 \n')
     fout.close()
     os.system('qsub %s' % subfile)
     return
@@ -52,16 +53,19 @@ def orbit2str(particle):
 
 def saveorbit(outfile,sim):
     fout=open(outfile,mode="a")
-    for p in sim.particles:
-        if p.id==0:
+    for p in range(len(sim.particles)):
+        if p==0:
             continue
-        line=orbit2str(p)
-        fout.write("%f %d %s\n" % (sim.t,p.id,line))
+        line=orbit2str(sim.particles[p])
+        fout.write("%f %d %s\n" % (sim.t,p,line))
     fout.close()
     return
 
 def main():
     for i in xrange(1,max_runs+1):
+        #rundir="run%d" % i
+        #os.chdir(basename)
+        #os.system("mkdir %s" % rundir)
 
         #initial the basic param array for a system
         mass_pl=np.zeros(N_pl)
@@ -104,6 +108,15 @@ def main():
 
         sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl)
 
+        init=[]
+        for p in range(len(sim.particles)):
+            if p==0:
+                continue
+            parr=np.array(list(orbit2str(sim.particles[p]).split()),dtype='f8')
+            init.append(parr)
+        print init
+        fig = rebound.OrbitPlot(sim)
+
 
 
         # set up integrator (TO BE EDITED)
@@ -128,16 +141,16 @@ def main():
 
         statuscode={"eject":2,"star":3,"collision":1,"survive":0}
 
-        times = np.linspace(0,tmax,Noutputs)
+        times = np.linspace(0,t_max,Noutputs)
         Ncurrent = sim.N
         finalstatus=np.zeros(Ncurrent-1)
         nstep=np.zeros(Ncurrent-1)
         end=np.zeros([Ncurrent-1,8])
-        outfile="runreboundoutput%.4d.txt" % i
-        fout=open(outfile,"w")
+        outfile="runrebound%.4d.txt" % i
+        fout=open(outfile,"w") # looks like we open it but never write anything to it?
         fout.close()
 
-        for i,time in enumerate(times):
+        for j,time in enumerate(times):
             try:
                 sim.integrate(time)
             #deal with Escape
@@ -146,14 +159,14 @@ def main():
                 #print error
                 max_d2 = 0.
                 peject=None
-                for p in sim.particles:
-                    if p.id==0:
+                for p in range(len(sim.particles)):
+                    if p==0:
                         continue
-                    d2 = p.x*p.x + p.y*p.y + p.z*p.z
+                    d2 = sim.particles[p].x*sim.particles[p].x + sim.particles[p].y*sim.particles[p].y + sim.particles[p].z*sim.particles[p].z
                     if d2>max_d2:
                         max_d2 = d2
-                        mid = p.id
-                        peject=p
+                        mid = p
+                        peject=sim.particles[p]
                 end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
                 sim.remove(id=mid)
                 nstep[mid-1]=int(sim.t/sim.dt)
@@ -163,31 +176,31 @@ def main():
             #deal with collision
             if Ncurrent>sim.N:
                 #print "collision"
-                for i in xrange(len(finalstatus)):
+                for l in xrange(len(finalstatus)):
 
-                    if finalstatus[i]==0:
+                    if finalstatus[l]==0:
                         cflag=True
-                        for p in sim.particles:
+                        for p in range(len(sim.particles)):
                             #print p,i+1,cflag
-                            if p.id==0:
+                            if p==0:
                                 continue
-                            if (p.id)==(i+1):
+                            if (p)==(l+1):
                                 cflag=False
                                 break
                         #print i,cflag
                         if cflag:
-                            finalstatus[i]=statuscode['collision']
-                            nstep[i]=int(sim.t/sim.dt)
+                            finalstatus[l]=statuscode['collision']
+                            nstep[l]=int(sim.t/sim.dt)
                             #print "final status",i+1,'collision'
                 Ncurrent=sim.N
             #print orbit2str(sim.particles[1].orbit)
-            for p in sim.particles:
-                if p.id==0:
+            for p in range(len(sim.particles)):
+                if p==0:
                     continue
-                end[p.id-1,:]=np.array(list(orbit2str(p).split()),dtype='f8')
+                end[p-1,:]=np.array(list(orbit2str(sim.particles[p]).split()),dtype='f8')
             if not outfile is None:
 
-                saveorbit(outfile,sim)
+                saveorbit(outfile,sim)#end)#sim)
         #TBD:how to handel the collision with star
 
         import pickle
@@ -195,12 +208,12 @@ def main():
         npcount=len(sim.particles)-1
         #total number of earth type planet left
         necount=0
-        for p in sim.particles:
-            if p.id==0:
+        for p in range(len(sim.particles)):
+            if p==0:
                 continue
-            if p.m<0.5e-3:
+            if sim.particles[p].m<0.5e-3:
                 necount+=1
-            nstep[p.id-1]=int(sim.t/sim.dt)
+            nstep[p-1]=int(sim.t/sim.dt)
 
         #print init
         #print end
@@ -209,14 +222,23 @@ def main():
         #print npcount
         #print necount
         datadump=[init,end,nstep,finalstatus,npcount,necount]
+        print 'init=', init
+        print 'end=', end
+        print 'nstep=', nstep
+        print 'finalstatus=', finalstatus
+        print 'npcount=', npcount
+        print 'necount=', necount
+        #print datadump
         infofile="runrebound%.4d.pkl" % i
         def write_outcome(infofile,datadump):
             pickle.dump(datadump,open(infofile,"w"))
             return
+        write_outcome(infofile, datadump)
 
+        #abspath=basename+rundir+"/"
+        #subfile=basename+rundir+"/submit_rebound"
+        #submit(abspath,subfile)
 
-
-        
     return
 if __name__=='__main__':
     main()
