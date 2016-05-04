@@ -7,20 +7,22 @@ import rebound
 from scipy.stats import rayleigh
 def set_hill(mass_pl):
     i_hill=0
-    while (i_hill<1):
-        spacing=np.random.randn(3)
-        a_inner=a_min+(a_max-a_min)*np.random.rand()
-        a_max_i=a_max
-        a_aux=a_inner+(a_max_i-a_inner)*spacing
-        a_pl=np.sort(a_aux)
+    a_pl=np.zeros(3)
+    while (a_pl[0]<1):
+        while (i_hill<1):
+            spacing=np.random.randn(3)
+            a_inner=a_min+(a_max-a_min)*np.random.rand()
+            a_max_i=a_max
+            a_aux=a_inner+(a_max_i-a_inner)*spacing
+            a_pl=np.sort(a_aux)
 
-        R_hill_12=((mass_pl[0]+mass_pl[1])/3)**(1./3.)*(a_pl[0]+a_pl[1])/2.
-        R_hill_23=((mass_pl[1]+mass_pl[2])/3)**(1./3.)*(a_pl[1]+a_pl[2])/2.
-        diff_a_12=abs(a_pl[1]-a_pl[0])
-        diff_a_23=abs(a_pl[2]-a_pl[1])
+            R_hill_12=((mass_pl[0]+mass_pl[1])/3)**(1./3.)*(a_pl[0]+a_pl[1])/2.
+            R_hill_23=((mass_pl[1]+mass_pl[2])/3)**(1./3.)*(a_pl[1]+a_pl[2])/2.
+            diff_a_12=abs(a_pl[1]-a_pl[0])
+            diff_a_23=abs(a_pl[2]-a_pl[1])
 
-        if(diff_a_12>k_Hill*R_hill_12 and diff_a_23>k_Hill*R_hill_23):
-            break
+            if(diff_a_12>k_Hill*R_hill_12 and diff_a_23>k_Hill*R_hill_23):
+                break
     return [a_inner,a_pl]
 
 def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl):
@@ -79,7 +81,6 @@ def main():
         mass_pl[2]=1.e-3
 
         a_inner,a_pl[:3]=set_hill(mass_pl[:3])
-
         #initial semi-major axis and masses of super earths,
         #in solar units
         M_earth=1./300./1000.
@@ -102,7 +103,8 @@ def main():
         omega_pl=360.*np.random.randn(N_pl)
         Omega_pl=360.*np.random.randn(N_pl)
         M_pl=360.*np.random.randn(N_pl)
-        t_max=t_orb*365.25*(a_inner)**1.5
+        #t_max=t_orb*365.25*(a_inner)**1.5
+        t_max=1.e3
         Noutputs=1000.
 
 
