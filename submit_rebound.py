@@ -4,6 +4,7 @@ import os
 import numpy as np
 import scipy as sp
 import rebound
+import sys
 from scipy.stats import rayleigh
 def set_hill(mass_pl):
     i_hill=0
@@ -237,10 +238,13 @@ def main():
             return
         write_outcome(infofile, datadump)
 
-        #abspath=basename+rundir+"/"
-        #subfile=basename+rundir+"/submit_rebound"
-        #submit(abspath,subfile)
+        
 
     return
 if __name__=='__main__':
-    main()
+    if len(sys.argv)==1:
+        main()
+    elif sys.argv[1]=='submit':
+        abspath=basename
+        subfile="qsubrebound"
+        submit(abspath,subfile)
