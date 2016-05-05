@@ -1,4 +1,4 @@
-max_runs=1
+max_runs=2
 sigma_e=0.01
 sigma_i=0.01
 a_min=2.
@@ -7,5 +7,5 @@ a_max_min=3.
 k_Hill=3.
 t_orb=1.e7
 N_pl=6
-num_runs = 4
+num_proc = 4
 basename='/mnt/raid-cita/cpetrovi/scatt_kepler/'
