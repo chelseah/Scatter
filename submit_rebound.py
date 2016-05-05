@@ -43,7 +43,7 @@ def submit(abspath,subfile):
     fout.write('#PBS -l walltime=48:00:00\n')
     fout.write('#PBS -N rebound_kepler\n')
     fout.write('cd %s\n' % abspath)
-    fout.write('./submit_rebound')
+    fout.write('./submit_rebound.py')
     #fout.write('./mercury6 >& /dev/null \n')
     #fout.write('./element6 \n')
     fout.close()
