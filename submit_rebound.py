@@ -42,11 +42,11 @@ def submit(abspath,subfile):
     fout.write('#PBS -r n \n')
     fout.write('#PBS -l walltime=06:00:00\n')
     fout.write('#PBS -N rebound_kepler\n')
-    fout.write('source /home/edeibert/src/virtualenv-1.5.2/ve/bin/activate')
+    fout.write('source /home/edeibert/src/virtualenv-1.5.2/ve/bin/activate\n')
     fout.write('cd %s\n' % abspath)
     fout.write('/home/edeibert/src/virtualenv-1.5.2/ve/bin/python submit_rebound.py')
     fout.close()
-    os.system('qsub %s' % subfile)
+    #os.system('qsub %s' % subfile)
     return
 
 def orbit2str(particle):
