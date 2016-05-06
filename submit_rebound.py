@@ -117,9 +117,9 @@ def init_orbit():
     #set up other orbital elements
     e_pl=rayleigh.rvs(scale=sigma_e,size=6)
     i_pl=rayleigh.rvs(scale=sigma_i,size=6)
-    omega_pl=360.*np.random.randn(N_pl)
-    Omega_pl=360.*np.random.randn(N_pl)
-    M_pl=360.*np.random.randn(N_pl)
+    omega_pl=2.*np.pi*np.random.randn(N_pl)
+    Omega_pl=2.*np.pi*np.random.randn(N_pl)
+    M_pl=2.*np.pi*np.random.randn(N_pl)
 
     return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
 
