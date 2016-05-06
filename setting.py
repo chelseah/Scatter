@@ -1,4 +1,4 @@
-max_runs=16
+max_runs=1#16
 sigma_e=0.01
 sigma_i=0.01
 a_min=2.
@@ -6,7 +6,8 @@ a_max=5.
 a_max_min=3.
 k_Hill=3.
 t_orb=1.e7
+t_switch=1.e5
 N_pl=6
-num_proc = 2
+num_proc = 1#2
 statuscode={"eject":2,"star":3,"collision":1,"survive":0}
 basename='/home/edeibert/code'
