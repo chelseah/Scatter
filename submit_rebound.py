@@ -7,7 +7,9 @@ import rebound
 import sys
 from scipy.stats import rayleigh
 import multiprocessing as mp
+import pickle
 def set_hill(mass_pl):
+    #set up the giant planets so that they will be instable at one point
     i_hill=0
     a_pl=np.zeros(3)
     while (a_pl[0]<1):
@@ -28,6 +30,7 @@ def set_hill(mass_pl):
     return [a_inner,a_pl]
 
 def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl):
+    #initialize a rebound run
     sim = rebound.Simulation()
     sim.add(m=1., r=0.005)
     for i in range(len(mass_pl)):
@@ -35,6 +38,7 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl):
     return sim
 
 def submit(abspath,subfile):
+    #create the submission file on the cluster
     fout=open(subfile,mode='w')
     fout.write("#!/bin/csh\n")
     fout.write('#PBS -l nodes=1:ppn=1\n')
@@ -50,11 +54,13 @@ def submit(abspath,subfile):
     return
 
 def orbit2str(particle):
+    #write the orbit elements to a string
     orbit=particle.orbit
     string="%15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f"%(particle.m,particle.r,orbit.a,orbit.e,orbit.inc,orbit.Omega,orbit.omega,orbit.f)
     return string
 
 def saveorbit(outfile,sim):
+    #save the orbits elements to a file
     fout=open(outfile,mode="a")
     for p in range(len(sim.particles)):
         if p==0:
@@ -65,6 +71,7 @@ def saveorbit(outfile,sim):
     return
 
 def read_init(infile):
+    #need to reload orbit elements from end result of a file. 
     raise ValueError, "this routine need to be developed"
     return
 
@@ -107,6 +114,7 @@ def init_orbit():
     return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
 
 def integrate(sim,times,outfile):
+    #the main integration routine
     Ncurrent = sim.N
     finalstatus=np.zeros(Ncurrent-1)
     nstep=np.zeros(Ncurrent-1)
@@ -165,23 +173,30 @@ def integrate(sim,times,outfile):
     return [finalstatus,end,nstep]
 
 def one_run(runnumber,infile=""):
+    #flow for one run
+
+    #set up the output files and directories (need further modify)
     np.random.seed()
     rundir="run%.4d" % runnumber
     os.system("mkdir %s" % rundir)
     os.chdir(rundir)
 
+    outfile="rebound%.4d.txt" % runnumber
+    fout=open(outfile,"w")
+    fout.close()
+    infofile="runrebound%.4d.pkl" % runnumber
+
+
+    #initialize the run
     if infile=="":
         mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit()
     else:
         mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
-        #t_max=t_orb*365.25*(a_inner)**1.5
     
-    t_max=1.e3
-    Noutputs=1000.
-
-
+   
     sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl)
 
+    saveorbit(outfile,sim)#save the initial orbits to output file file
     init=[]
     for p in range(len(sim.particles)):
         if p==0:
@@ -190,8 +205,13 @@ def one_run(runnumber,infile=""):
         init.append(parr)
     print init
     #fig = rebound.OrbitPlot(sim)
-
+    
+    
     # set up integrator (TO BE EDITED)
+    #t_max=t_orb*365.25*(a_inner)**1.5
+    t_max=1.e3
+    Noutputs=1000.
+
     sim.integrator="hybrid"
     sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
     sim.ri_hybarid.CE_radius = 15.  #X*radius
@@ -214,14 +234,10 @@ def one_run(runnumber,infile=""):
 
     times = np.linspace(0,t_max,Noutputs)
     
-    outfile="rebound%.4d.txt" % runnumber
-    fout=open(outfile,"w")
-    fout.close()
-
+    #call integration
     finalstatus,end,nstep=integrate(sim,times,outfile)
 
 
-    import pickle
     #total number of planets left
     npcount=len(sim.particles)-1
     #total number of earth type planet left
@@ -235,7 +251,6 @@ def one_run(runnumber,infile=""):
 
     datadump=[init,end,nstep,finalstatus,npcount,necount]
     
-    infofile="runrebound%.4d.pkl" % runnumber
     def write_outcome(infofile,datadump):
         pickle.dump(datadump,open(infofile,"w"))
         return
