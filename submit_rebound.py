@@ -29,12 +29,13 @@ def set_hill(mass_pl):
                 break
     return [a_inner,a_pl]
 
-def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl):
+def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     #initialize a rebound run
     sim = rebound.Simulation()
+    sim.t=t
     sim.add(m=1., r=0.005)
     for i in range(len(mass_pl)):
-        sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i])
+        sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i],id=(i+1))
     return sim
 
 def submit(abspath,subfile):
@@ -56,24 +57,33 @@ def submit(abspath,subfile):
 def orbit2str(particle):
     #write the orbit elements to a string
     orbit=particle.orbit
-    string="%15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f"%(particle.m,particle.r,orbit.a,orbit.e,orbit.inc,orbit.Omega,orbit.omega,orbit.f)
+    string="%15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f"%(particle.m,particle.r,orbit.a,orbit.e,orbit.inc,orbit.Omega,orbit.omega,orbit.M)
     return string
 
 def saveorbit(outfile,sim):
     #save the orbits elements to a file
     fout=open(outfile,mode="a")
-    for p in range(len(sim.particles)):
-        if p==0:
+    for p in sim.particles:
+        if p.id==0:
             continue
-        line=orbit2str(sim.particles[p])
-        fout.write("%f %d %s\n" % (sim.t,p,line))
+        line=orbit2str(p)
+        fout.write("%f %d %s\n" % (sim.t,p.id,line))
     fout.close()
     return
 
 def read_init(infile):
-    #need to reload orbit elements from end result of a file. 
-    raise ValueError, "this routine need to be developed"
-    return
+    #need to reload orbit elements from end result of a file.
+    data=np.loadtxt(infile)
+    t=data[:,0][0]
+    mass_pl=data[:,2]
+    r_pl=data[:,3]
+    a_pl=data[:,4]
+    e_pl=data[:,5]
+    i_pl=data[:,6]
+    Omega_pl=data[:,7]
+    omega_pl=data[:,8]
+    M_pl=data[:,9]
+    return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
 
 def init_orbit():
     #initial the basic param array for a system
@@ -120,28 +130,28 @@ def integrate(sim,times,outfile):
     nstep=np.zeros(Ncurrent-1)
     end=np.zeros([Ncurrent-1,8])
     for j,time in enumerate(times):
-        try:
-            sim.integrate(time)
+        sim.integrate(time)
         #deal with Escape
-        except rebound.Escape as error:
 
-            #print error
-            max_d2 = 0.
-            peject=None
-            for p in range(len(sim.particles)):
-                if p==0:
-                    continue
-                d2 = sim.particles[p].x*sim.particles[p].x + sim.particles[p].y*sim.particles[p].y + sim.particles[p].z*sim.particles[p].z
-                if d2>max_d2:
-                    max_d2 = d2
-                    mid = p
-                    peject=sim.particles[p]
+        #print error
+        max_d2 = 0.
+        peject=None
+        
+         
+        for p in sim.particles:
+            if p.id==0:
+                continue
+            #print p
+            if p.a>100: 
+                mid = p.id
+                peject=p
+        if not peject is None:
             end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
             sim.remove(id=mid)
             nstep[mid-1]=int(sim.t/sim.dt)
             Ncurrent-=1
             finalstatus[mid-1]=statuscode['eject']
-            #print "final status",mid,"eject"
+        #print "final status",mid,"eject"
         #deal with collision
         if Ncurrent>sim.N:
             #print "collision"
@@ -149,11 +159,11 @@ def integrate(sim,times,outfile):
 
                 if finalstatus[l]==0:
                     cflag=True
-                    for p in range(len(sim.particles)):
+                    for p in sim.particles:
                         #print p,i+1,cflag
-                        if p==0:
+                        if p.id==0:
                             continue
-                        if (p)==(l+1):
+                        if (p.id)==(l+1):
                             cflag=False
                             break
                     #print i,cflag
@@ -163,10 +173,10 @@ def integrate(sim,times,outfile):
                         #print "final status",i+1,'collision'
             Ncurrent=sim.N
         #print orbit2str(sim.particles[1].orbit)
-        for p in range(len(sim.particles)):
-            if p==0:
+        for p in sim.particles:
+            if p.id==0:
                 continue
-            end[p-1,:]=np.array(list(orbit2str(sim.particles[p]).split()),dtype='f8')
+            end[p.id-1,:]=np.array(list(orbit2str(p).split()),dtype='f8')
         if not outfile is None:
 
             saveorbit(outfile,sim)#end)#sim)
@@ -177,6 +187,13 @@ def one_run(runnumber,infile=""):
 
     #set up the output files and directories (need further modify)
     np.random.seed()
+    
+    #initialize the run
+    t=0
+    if infile=="":
+        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit()
+    else:
+        t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
     rundir="run%.4d" % runnumber
     os.system("mkdir %s" % rundir)
     os.chdir(rundir)
@@ -187,21 +204,15 @@ def one_run(runnumber,infile=""):
     infofile="runrebound%.4d.pkl" % runnumber
 
 
-    #initialize the run
-    if infile=="":
-        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit()
-    else:
-        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
     
-   
-    sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl)
+    sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=t)
 
     saveorbit(outfile,sim)#save the initial orbits to output file file
     init=[]
-    for p in range(len(sim.particles)):
-        if p==0:
+    for p in sim.particles:
+        if p.id==0:
             continue
-        parr=np.array(list(orbit2str(sim.particles[p]).split()),dtype='f8')
+        parr=np.array(list(orbit2str(p).split()),dtype='f8')
         init.append(parr)
     print init
     #fig = rebound.OrbitPlot(sim)
@@ -209,7 +220,7 @@ def one_run(runnumber,infile=""):
     
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
-    t_max=1.e3
+    t_max=1.e5
     Noutputs=1000.
 
     sim.integrator="hybrid"
@@ -227,7 +238,7 @@ def one_run(runnumber,infile=""):
     sim.collisions_track_dE = 1
 
     #set up escape options
-    sim.exit_max_distance = 100.
+    #sim.exit_max_distance = 100.
     #sim.exit_min_distance = 0.01
     #print sim.collisions[0]
 
@@ -242,12 +253,12 @@ def one_run(runnumber,infile=""):
     npcount=len(sim.particles)-1
     #total number of earth type planet left
     necount=0
-    for p in range(len(sim.particles)):
-        if p==0:
+    for p in sim.particles:
+        if p.id==0:
             continue
-        if sim.particles[p].m<0.5e-3:
+        if p.m<0.5e-3:
             necount+=1
-        nstep[p-1]=int(sim.t/sim.dt)
+        nstep[p.id-1]=int(sim.t/sim.dt)
 
     datadump=[init,end,nstep,finalstatus,npcount,necount]
     
@@ -277,5 +288,5 @@ if __name__=='__main__':
         submit(abspath,subfile)
     elif sys.argv[1]=='restart':
         abspath=basename
-        infile="reboundin"
+        infile="testinput.txt"
         one_run(1,infile)
