@@ -71,7 +71,7 @@ def saveorbit(outfile,sim):
     return
 
 def read_init(infile):
-    #need to reload orbit elements from end result of a file. 
+    #need to reload orbit elements from end result of a file.
     raise ValueError, "this routine need to be developed"
     return
 
@@ -111,7 +111,8 @@ def init_orbit():
     Omega_pl=360.*np.random.randn(N_pl)
     M_pl=360.*np.random.randn(N_pl)
 
-    return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
+    return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
+
 
 def integrate(sim,times,outfile):
     #the main integration routine
@@ -120,6 +121,12 @@ def integrate(sim,times,outfile):
     nstep=np.zeros(Ncurrent-1)
     end=np.zeros([Ncurrent-1,8])
     for j,time in enumerate(times):
+        if time < t_switch:
+            sim.integrator="ias15"
+        else:
+            sim.integrator="hybrid"
+            sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
+            sim.ri_hybarid.CE_radius = 15.  #X*radius
         try:
             sim.integrate(time)
         #deal with Escape
@@ -137,10 +144,13 @@ def integrate(sim,times,outfile):
                     mid = p
                     peject=sim.particles[p]
             end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
-            sim.remove(id=mid)
-            nstep[mid-1]=int(sim.t/sim.dt)
-            Ncurrent-=1
-            finalstatus[mid-1]=statuscode['eject']
+            try:
+                sim.remove(id=mid)
+                nstep[mid-1]=int(sim.t/sim.dt)
+                Ncurrent-=1
+                finalstatus[mid-1]=statuscode['eject']
+            except ValueError:
+                pass
             #print "final status",mid,"eject"
         #deal with collision
         if Ncurrent>sim.N:
@@ -192,8 +202,8 @@ def one_run(runnumber,infile=""):
         mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit()
     else:
         mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
-    
-   
+
+
     sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl)
 
     saveorbit(outfile,sim)#save the initial orbits to output file file
@@ -203,18 +213,20 @@ def one_run(runnumber,infile=""):
             continue
         parr=np.array(list(orbit2str(sim.particles[p]).split()),dtype='f8')
         init.append(parr)
-    print init
+    #print init
     #fig = rebound.OrbitPlot(sim)
-    
-    
+
+
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
-    t_max=1.e3
+    t_max=1.e5
     Noutputs=1000.
 
-    sim.integrator="hybrid"
-    sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
-    sim.ri_hybarid.CE_radius = 15.  #X*radius
+    #sim.integrator="ias15"
+    # else:
+    #    sim.integrator="hybrid"
+    #    sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
+    #    sim.ri_hybarid.CE_radius = 15.  #X*radius
     sim.testparticle_type = 1
 
     #set up time step
@@ -233,7 +245,7 @@ def one_run(runnumber,infile=""):
 
 
     times = np.linspace(0,t_max,Noutputs)
-    
+
     #call integration
     finalstatus,end,nstep=integrate(sim,times,outfile)
 
@@ -250,7 +262,7 @@ def one_run(runnumber,infile=""):
         nstep[p-1]=int(sim.t/sim.dt)
 
     datadump=[init,end,nstep,finalstatus,npcount,necount]
-    
+
     def write_outcome(infofile,datadump):
         pickle.dump(datadump,open(infofile,"w"))
         return
@@ -266,10 +278,6 @@ def main():
     return
 if __name__=='__main__':
     if len(sys.argv)==1:
-        #for run in xrange(1, num_runs+1):
-        #    p = mp.Process(target=main)
-        #    p.start()
-        
         main()
     elif sys.argv[1]=='submit':
         abspath=basename
