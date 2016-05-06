@@ -7,5 +7,6 @@ a_max_min=3.
 k_Hill=3.
 t_orb=1.e7
 N_pl=6
-num_proc = 8
+num_proc = 2
+statuscode={"eject":2,"star":3,"collision":1,"survive":0}
 basename='/home/edeibert/code'
