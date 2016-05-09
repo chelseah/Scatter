@@ -36,6 +36,9 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     sim.add(m=1., r=0.005)
     for i in range(len(mass_pl)):
         sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i],id=(i+1))
+    #sim.move_to_com()
+    for p in sim.particles:
+        print p
     return sim
 
 def submit(abspath,subfile):
@@ -131,7 +134,9 @@ def integrate(sim,times,outfile):
     end=np.zeros([Ncurrent-1,8])
     for j,time in enumerate(times):
         sim.integrate(time)
-        #deal with Escape
+        #for p in sim.particles:
+            #print p
+            #deal with Escape
 
         #print error
         max_d2 = 0.
@@ -141,7 +146,6 @@ def integrate(sim,times,outfile):
         for p in sim.particles:
             if p.id==0:
                 continue
-            #print p
             if p.a>100: 
                 mid = p.id
                 peject=p
@@ -151,7 +155,7 @@ def integrate(sim,times,outfile):
             nstep[mid-1]=int(sim.t/sim.dt)
             Ncurrent-=1
             finalstatus[mid-1]=statuscode['eject']
-        #print "final status",mid,"eject"
+            #print "final status",mid,"eject"
         #deal with collision
         if Ncurrent>sim.N:
             #print "collision"
@@ -206,7 +210,7 @@ def one_run(runnumber,infile=""):
 
     
     sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=t)
-
+    #return
     saveorbit(outfile,sim)#save the initial orbits to output file file
     init=[]
     for p in sim.particles:
@@ -221,10 +225,10 @@ def one_run(runnumber,infile=""):
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
     t_max=1.e5
-    Noutputs=1000.
+    Noutputs=10000.
 
     sim.integrator="hybrid"
-    sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
+    sim.ri_hybarid.switch_ratio = 10  #units of Hill radii
     sim.ri_hybarid.CE_radius = 15.  #X*radius
     sim.testparticle_type = 1
 
