@@ -73,17 +73,17 @@ def saveorbit(outfile,sim):
 
 def read_init(infile):
     #need to reload orbit elements from end result of a file.
-    data=np.loadtxt(infile)
+    data=np.loadtxt(infile, skiprows=1)
     t=data[:,0][0]
     mass_pl=data[:,2]
     r_pl=data[:,3]
     a_pl=data[:,4]
     e_pl=data[:,5]
-    i_pl=data[:,6]
-    Omega_pl=data[:,7]
-    omega_pl=data[:,8]
-    M_pl=data[:,9]
-    return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
+    i_pl=np.rad(data[:,6])
+    Omega_pl=np.rad(data[:,7])
+    omega_pl=np.rad(data[:,8])
+    M_pl=np.rad(data[:,9])
+    return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
 def init_orbit():
     #initial the basic param array for a system
@@ -121,7 +121,7 @@ def init_orbit():
     Omega_pl=2.*np.pi*np.random.randn(N_pl)
     M_pl=2.*np.pi*np.random.randn(N_pl)
 
-    return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
+    return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
 def integrate(sim,times,outfile):
     #the main integration routine
@@ -136,13 +136,13 @@ def integrate(sim,times,outfile):
         #print error
         max_d2 = 0.
         peject=None
-        
-         
+
+
         for p in sim.particles:
             if p.id==0:
                 continue
             #print p
-            if p.a>100: 
+            if p.a>100:
                 mid = p.id
                 peject=p
         if not peject is None:
@@ -187,7 +187,7 @@ def one_run(runnumber,infile=""):
 
     #set up the output files and directories (need further modify)
     np.random.seed()
-    
+
     #initialize the run
     t=0
     if infile=="":
@@ -204,7 +204,7 @@ def one_run(runnumber,infile=""):
     infofile="runrebound%.4d.pkl" % runnumber
 
 
-    
+
     sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=t)
 
     saveorbit(outfile,sim)#save the initial orbits to output file file
@@ -216,16 +216,17 @@ def one_run(runnumber,infile=""):
         init.append(parr)
     print init
     #fig = rebound.OrbitPlot(sim)
-    
-    
+
+
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
-    t_max=1.e5
+    t_max=1.e6*2*np.pi
     Noutputs=1000.
 
-    sim.integrator="hybrid"
-    sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
-    sim.ri_hybarid.CE_radius = 15.  #X*radius
+    sim.integrator="ias15"
+    #sim.integrator="hybrid"
+    #sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
+    #sim.ri_hybarid.CE_radius = 15.  #X*radius
     sim.testparticle_type = 1
 
     #set up time step
@@ -244,7 +245,7 @@ def one_run(runnumber,infile=""):
 
 
     times = np.linspace(0,t_max,Noutputs)
-    
+
     #call integration
     finalstatus,end,nstep=integrate(sim,times,outfile)
 
@@ -261,7 +262,7 @@ def one_run(runnumber,infile=""):
         nstep[p.id-1]=int(sim.t/sim.dt)
 
     datadump=[init,end,nstep,finalstatus,npcount,necount]
-    
+
     def write_outcome(infofile,datadump):
         pickle.dump(datadump,open(infofile,"w"))
         return
@@ -280,7 +281,7 @@ if __name__=='__main__':
         #for run in xrange(1, num_runs+1):
         #    p = mp.Process(target=main)
         #    p.start()
-        
+
         main()
     elif sys.argv[1]=='submit':
         abspath=basename
@@ -288,5 +289,5 @@ if __name__=='__main__':
         submit(abspath,subfile)
     elif sys.argv[1]=='restart':
         abspath=basename
-        infile="testinput.txt"
+        infile="big.txt"
         one_run(1,infile)

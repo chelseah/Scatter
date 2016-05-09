@@ -68,31 +68,31 @@ def main():
     for i in xrange(1,max_runs+1):
         rundir="run%d" % i
         os.system("mkdir %s" % rundir)
-        for ex in excutable: 
+        for ex in excutable:
             os.system("cp %s %s/" % (ex,rundir))
         for infile in inlist:
             os.system("cp %s %s/" % (infile,rundir))
-    
+
         #initial the basic param array for a system
         mass_pl=np.zeros(N_pl)
         a_pl=np.zeros(N_pl)
         d_pl=np.zeros(N_pl)
-        
-        #initial semi-major axis and masses of gas giant, 
+
+        #initial semi-major axis and masses of gas giant,
         #in solar units
         mass_pl[0]=1.e-3
         mass_pl[1]=1.e-3
         mass_pl[2]=1.e-3
-        
-        a_inner,a_pl[:3]=set_hill(mass_pl[:3]) 
 
-        #initial semi-major axis and masses of super earths, 
+        a_inner,a_pl[:3]=set_hill(mass_pl[:3])
+
+        #initial semi-major axis and masses of super earths,
         #in solar units
         M_earth=1./300./1000.
         mass_pl[3]=5*M_earth
         mass_pl[4]=10*M_earth
         mass_pl[5]=15*M_earth
-        
+
         #need to move to setting file in the future
         a_pl[3]=0.1
         a_pl[4]=0.25
@@ -111,12 +111,12 @@ def main():
         t_max=t_orb*365.25*(a_inner)**1.5
         t_dump=t_max/1000.
 
-        
+
 
         #write to big.in
         outfile = rundir+"/big.in"
         writetobig(mass_pl,a_pl,d_pl,e_pl,i_pl,g_pl,n_pl,M_pl,outfile)
-        
+
         abspath=basename+rundir+"/"
         subfile=basename+rundir+"/submit_mercury"
         #subfile=rundir+"/submit_mercury"

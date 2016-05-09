@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 import scipy as sp
-import matplotlib 
+import matplotlib
 from matplotlib import pyplot as plt
 import os
 import re
@@ -30,12 +30,12 @@ def gather_run(rundir,nps,nele=8):
         nsteparr[i]=data.shape[0]
 
     #get summary info
-    #statuscode: 
+    #statuscode:
     #0-survive
-    #1-collision 
+    #1-collision
     #2-eject
     #3-star
-    
+
     npstatus=np.zeros(nps)
     if (nsteparr==1).any():
         #bad run
@@ -55,7 +55,7 @@ def gather_run(rundir,nps,nele=8):
     for i in xrange(lensum):
         line = outputs.split('\n')[i]
         n,sc=classify(line)
-        if sc==1: 
+        if sc==1:
             nc=int(line.split()[4][2])
             if nsteparr[n-1]<nsteparr[nc-1]:
                 npstatus[n-1]=sc
@@ -63,8 +63,8 @@ def gather_run(rundir,nps,nele=8):
                 npstatus[nc-1]=sc
         else:
             npstatus[n-1]=sc
-    
-    
+
+
 
     return [initarr,endarr,nsteparr,npstatus]
 
@@ -204,7 +204,7 @@ def main():
         plot_init_end(inittotal,endtotal)
 
         plot_end_survive(endtotal,nsteptotal)
-    
+
     npcount,necount=output_status(npstatustotal)
     datadump=[inittotal,endtotal,nsteptotal,npstatustotal,npcount,necount]
     pickle.dump(datadump,open('runsummary.pkl','w'))
