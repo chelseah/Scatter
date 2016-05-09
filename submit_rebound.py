@@ -36,20 +36,24 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     sim.add(m=1., r=0.005)
     for i in range(len(mass_pl)):
         sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i],id=(i+1))
+    sim.move_to_com()
     return sim
 
-def submit(abspath,subfile):
+def submit(abspath,subfile,start=1):
     #create the submission file on the cluster
     fout=open(subfile,mode='w')
     fout.write("#!/bin/csh\n")
-    fout.write('#PBS -l nodes=1:ppn=1\n')
+    fout.write('#PBS -l nodes=1:ppn=8\n')
     fout.write('#PBS -q workq\n')
     fout.write('#PBS -r n \n')
     fout.write('#PBS -l walltime=06:00:00\n')
     fout.write('#PBS -N rebound_kepler\n')
-    fout.write('source /home/edeibert/src/virtualenv-1.5.2/ve/bin/activate\n')
+    fout.write('source %sbin/activate\n'% pythonpath)
     fout.write('cd %s\n' % abspath)
-    fout.write('/home/edeibert/src/virtualenv-1.5.2/ve/bin/python submit_rebound.py')
+    if start>1:
+        fout.write('%sbin/python submit_rebound.py %d' % (pythonpath,start))
+    else:
+        fout.write('%sbin/python submit_rebound.py' % pythonpath)
     fout.close()
     #os.system('qsub %s' % subfile)
     return
@@ -223,10 +227,10 @@ def one_run(runnumber,infile=""):
     t_max=1.e5
     Noutputs=1000.
 
-    sim.integrator="hybrid"
-    sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
-    sim.ri_hybarid.CE_radius = 15.  #X*radius
-    sim.testparticle_type = 1
+    sim.integrator="ias15"
+    #sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
+    #sim.ri_hybarid.CE_radius = 15.  #X*radius
+    #sim.testparticle_type = 1
 
     #set up time step
     sim.dt = 0.001 #time step in units of yr/2pi
@@ -270,9 +274,9 @@ def one_run(runnumber,infile=""):
     print 'exit run', runnumber
     return
 
-def main():
+def main(start=1):
     pool = mp.Pool(processes=num_proc)
-    pool.map(one_run,range(1,max_runs+1))
+    pool.map(one_run,range(start,max_runs+start))
 
     return
 if __name__=='__main__':
@@ -290,3 +294,6 @@ if __name__=='__main__':
         abspath=basename
         infile="testinput.txt"
         one_run(1,infile)
+    else:
+        start=eval(sys.argv[1])
+        main(start)

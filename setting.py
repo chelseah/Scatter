@@ -1,4 +1,4 @@
-max_runs=16
+max_runs=1
 sigma_e=0.01
 sigma_i=0.01
 a_min=2.
@@ -7,6 +7,8 @@ a_max_min=3.
 k_Hill=3.
 t_orb=1.e7
 N_pl=6
-num_proc = 0
+num_proc = 1
 statuscode={"eject":2,"star":3,"collision":1,"survive":0}
 basename='/home/edeibert/code'
+pythonpath='/home/edeibert/src/virtualenv-1.5.2/ve/'
+nnodes=8
