@@ -8,6 +8,40 @@ import sys
 from scipy.stats import rayleigh
 import multiprocessing as mp
 import pickle
+
+def check_for_bad_dt(sim):
+    bad_dt = 0
+    
+    par = sim.particles
+    p0 = sim.particles[0]                                      #star
+    p = sim.particles[sim.N_active]                            #planet
+    dx = p.x - p0.x
+    dy = p.y - p0.y
+    dz = p.z - p0.z
+    mh = (p.m/(3*p0.m))**(1./3.)
+    rhill_p = mh*(dx*dx + dy*dy + dz*dz)**(0.5)               #hill radius planet
+    vmax = 0                                                  #max relative velocity squared
+    for i in xrange(sim.N_active,sim.N):
+        dx_i = par[i].x - p0.x
+        dy_i = par[i].y - p0.y
+        dz_i = par[i].z - p0.z
+        mh_i = (par[i].m/(3*p0.m))**(1./3.)
+        rhill_p_i = mh_i*(dx_i*dx_i + dy_i*dy_i + dz_i*dz_i)**(0.5)
+        rh_sum = rhill_p + rhill_p_i
+        dvx = par[i].vx - p.vx
+        dvy = par[i].vy - p.vy
+        dvz = par[i].vz - p.vz
+        v = (dvx*dvx + dvy*dvy + dvz*dvz)**(0.5)
+        if v > vmax:
+            vmax = v
+    HSR = sim.ri_hybarid.switch_radius
+    min_dt = HSR*rh_sum / vmax
+    if(min_dt < 4*sim.dt):
+        bad_dt = 1                                           #factor of 4 for extra wiggle room
+    return bad_dt
+
+
+
 def set_hill(mass_pl):
     #set up the giant planets so that they will be instable at one point
     i_hill=0
@@ -133,6 +167,7 @@ def integrate(sim,times,outfile):
     finalstatus=np.zeros(Ncurrent-1)
     nstep=np.zeros(Ncurrent-1)
     end=np.zeros([Ncurrent-1,8])
+    bad_dts=np.zeros(len(times))
     for j,time in enumerate(times):
         sim.integrate(time)
         #deal with Escape
@@ -184,9 +219,10 @@ def integrate(sim,times,outfile):
         if not outfile is None:
 
             saveorbit(outfile,sim)#end)#sim)
-    return [finalstatus,end,nstep]
+        bad_dts[j] = check_for_bad_dt(sim)
+    return [finalstatus,end,nstep,baddt]
 
-def one_run(runnumber,infile=""):
+def one_run(runnumber,infile="",HSR=None,dt=None):
     #flow for one run
 
     #set up the output files and directories (need further modify)
@@ -224,16 +260,22 @@ def one_run(runnumber,infile=""):
     
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
-    t_max=1.e5
+    t_max=1.e5*2.*np.pi
     Noutputs=1000.
 
-    sim.integrator="ias15"
-    #sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
-    #sim.ri_hybarid.CE_radius = 15.  #X*radius
-    #sim.testparticle_type = 1
+    sim.integrator="hybarid"
+    if not HSE is None:
+        sim.ri_hybarid.switch_ratio = HSE  #units of Hill radii
+    else:
+        sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
+    sim.ri_hybarid.CE_radius = 20.  #X*radius
+    sim.testparticle_type = 1
 
     #set up time step
-    sim.dt = 0.001 #time step in units of yr/2pi
+    if not dt is None:
+        sim.dt = dt #time step in units of yr/2pi
+    else:
+        sim.dt = 0.001 #time step in units of yr/2pi
     #set up collision options
     #by default, the end result of the collision always
     #keep the small id number.
@@ -247,12 +289,15 @@ def one_run(runnumber,infile=""):
     #print sim.collisions[0]
 
 
-    times = np.linspace(0,t_max,Noutputs)
-    
+    times = np.logspace(1,np.log10(t_max),Noutputs)
+    E0 = sim.calculate_energy()
+    start_t = timing.time()
     #call integration
-    finalstatus,end,nstep=integrate(sim,times,outfile)
-
-
+    finalstatus,end,nstep,bad_dt=integrate(sim,times,outfile)
+    #Final processing
+    #bad_dt = sim.ri_hybarid.timestep_too_large_warning
+    dE = abs((sim.calculate_energy() - E0)/E0)
+    time = timing.time() - start_t
     #total number of planets left
     npcount=len(sim.particles)-1
     #total number of earth type planet left
@@ -264,7 +309,7 @@ def one_run(runnumber,infile=""):
             necount+=1
         nstep[p.id-1]=int(sim.t/sim.dt)
 
-    datadump=[init,end,nstep,finalstatus,npcount,necount]
+    datadump=[init,end,nstep,finalstatus,npcount,necount,HSR,dt,dE,bad_dt,time]
     
     def write_outcome(infofile,datadump):
         pickle.dump(datadump,open(infofile,"w"))
