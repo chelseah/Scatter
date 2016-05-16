@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time as timing
 from setting import *
 import os
 import numpy as np
@@ -8,6 +9,42 @@ import sys
 from scipy.stats import rayleigh
 import multiprocessing as mp
 import pickle
+
+def check_for_bad_dt(sim):
+    bad_dt = 0
+    
+    par = sim.particles
+    p0 = sim.particles[0]                                      #star
+    p = sim.particles[1]                            #planet
+    dx = p.x - p0.x
+    dy = p.y - p0.y
+    dz = p.z - p0.z
+    mh = (p.m/(3*p0.m))**(1./3.)
+    rhill_p = mh*(dx*dx + dy*dy + dz*dz)**(0.5)               #hill radius planet
+    vmax = 0                                                  #max relative velocity squared
+    for i in xrange(2,sim.N):
+        dx_i = par[i].x - p0.x
+        dy_i = par[i].y - p0.y
+        dz_i = par[i].z - p0.z
+        mh_i = (par[i].m/(3*p0.m))**(1./3.)
+        rhill_p_i = mh_i*(dx_i*dx_i + dy_i*dy_i + dz_i*dz_i)**(0.5)
+        rh_sum = rhill_p + rhill_p_i
+        dvx = par[i].vx - p.vx
+        dvy = par[i].vy - p.vy
+        dvz = par[i].vz - p.vz
+        v = (dvx*dvx + dvy*dvy + dvz*dvz)**(0.5)
+        print 'v',v,dvx,dvy,dvz
+        if v > vmax:
+            vmax = v
+    HSR = sim.ri_hybarid.switch_radius
+    min_dt = HSR*rh_sum / vmax
+    print 'vmax',vmax,HSR*rh_sum,min_dt,HSR
+    if(min_dt < 4*sim.dt):
+        bad_dt = 1                                           #factor of 4 for extra wiggle room
+    return bad_dt
+
+
+
 def set_hill(mass_pl):
     #set up the giant planets so that they will be instable at one point
     i_hill=0
@@ -37,22 +74,23 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     for i in range(len(mass_pl)):
         sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i],id=(i+1))
     sim.move_to_com()
-    for p in sim.particles:
-        print p
     return sim
 
-def submit(abspath,subfile):
+def submit(abspath,subfile,start=1):
     #create the submission file on the cluster
     fout=open(subfile,mode='w')
-    fout.write("#!/bin/csh\n")
-    fout.write('#PBS -l nodes=1:ppn=1\n')
+    fout.write("#!/bin/bash\n")
+    fout.write('#PBS -l nodes=1:ppn=8\n')
     fout.write('#PBS -q workq\n')
     fout.write('#PBS -r n \n')
-    fout.write('#PBS -l walltime=06:00:00\n')
+    fout.write('#PBS -l walltime=48:00:00\n')
     fout.write('#PBS -N rebound_kepler\n')
-    fout.write('source /home/edeibert/src/virtualenv-1.5.2/ve/bin/activate\n')
+    fout.write('source %sbin/activate\n'% pythonpath)
     fout.write('cd %s\n' % abspath)
-    fout.write('/home/edeibert/src/virtualenv-1.5.2/ve/bin/python submit_rebound.py')
+    if start>1:
+        fout.write('%sbin/python submit_rebound.py %d' % (pythonpath,start))
+    else:
+        fout.write('%sbin/python submit_rebound.py' % pythonpath)
     fout.close()
     #os.system('qsub %s' % subfile)
     return
@@ -66,11 +104,12 @@ def orbit2str(particle):
 def saveorbit(outfile,sim):
     #save the orbits elements to a file
     fout=open(outfile,mode="a")
+    E=sim.calculate_energy()
     for p in sim.particles:
         if p.id==0:
             continue
         line=orbit2str(p)
-        fout.write("%f %d %s\n" % (sim.t,p.id,line))
+        fout.write("%f %15.12f %d %s\n" % (sim.t,E, p.id,line))
     fout.close()
     return
 
@@ -88,7 +127,7 @@ def read_init(infile):
     M_pl=np.rad(data[:,9])
     return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
-def init_orbit():
+def init_orbit(randomstat=1):
     #initial the basic param array for a system
     mass_pl=np.zeros(N_pl)
     a_pl=np.zeros(N_pl)
@@ -101,6 +140,9 @@ def init_orbit():
     mass_pl[2]=1.e-3
 
     a_inner,a_pl[:3]=set_hill(mass_pl[:3])
+    #a_pl[0]=1.91
+    #a_pl[1]=2.31
+    #a_pl[2]=1.07
     #initial semi-major axis and masses of super earths,
     #in solar units
     M_earth=1./300./1000.
@@ -114,15 +156,16 @@ def init_orbit():
     a_pl[5]=0.5
 
     #need to modify in the future how this is set up
-    r_pl[:2]=5e-4
+    r_pl[:3]=5e-4
     r_pl[3:]=1e-4
 
     #set up other orbital elements
-    e_pl=rayleigh.rvs(scale=sigma_e,size=6)
-    i_pl=rayleigh.rvs(scale=sigma_i,size=6)
-    omega_pl=2.*np.pi*np.random.randn(N_pl)
-    Omega_pl=2.*np.pi*np.random.randn(N_pl)
-    M_pl=2.*np.pi*np.random.randn(N_pl)
+    e_pl=rayleigh.rvs(scale=sigma_e,size=6,random_state=randomstat)
+    i_pl=rayleigh.rvs(scale=sigma_i,size=6,random_state=randomstat+1000)
+    np.random.seed(randomstat+2000)
+    omega_pl=2.*np.pi*np.random.rand(N_pl)
+    Omega_pl=2.*np.pi*np.random.rand(N_pl)
+    M_pl=2.*np.pi*np.random.rand(N_pl)
 
     return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
@@ -132,6 +175,8 @@ def integrate(sim,times,outfile):
     finalstatus=np.zeros(Ncurrent-1)
     nstep=np.zeros(Ncurrent-1)
     end=np.zeros([Ncurrent-1,8])
+    bad_dts=np.zeros(len(times))
+    dEs=np.zeros(len(times))
     for j,time in enumerate(times):
         sim.integrate(time)
         #for p in sim.particles:
@@ -184,9 +229,11 @@ def integrate(sim,times,outfile):
         if not outfile is None:
 
             saveorbit(outfile,sim)#end)#sim)
-    return [finalstatus,end,nstep]
+        bad_dts[j] = check_for_bad_dt(sim)
+    	dEs[j] = sim.calculate_energy()
+    return [finalstatus,end,nstep,bad_dts,dEs]
 
-def one_run(runnumber,infile=""):
+def one_run(runnumber,infile="",HSR=None,dt=None):
     #flow for one run
 
     #set up the output files and directories (need further modify)
@@ -195,17 +242,14 @@ def one_run(runnumber,infile=""):
     #initialize the run
     t=0
     if infile=="":
-        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit()
+        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit(runnumber)
     else:
         t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
-    rundir="run%.4d" % runnumber
-    os.system("mkdir %s" % rundir)
-    os.chdir(rundir)
 
-    outfile="rebound%.4d.txt" % runnumber
+    outfile="runias/rebound%.4d.txt" % runnumber
     fout=open(outfile,"w")
     fout.close()
-    infofile="runrebound%.4d.pkl" % runnumber
+    infofile="runias/runrebound%.4d.pkl" % runnumber
 
 
 
@@ -224,21 +268,28 @@ def one_run(runnumber,infile=""):
 
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
-    t_max=1.e6*2*np.pi
-    Noutputs=5000.#10000.
 
-    sim.integrator="ias15"
-    #sim.integrator="hybrid"
-    #sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
-    #sim.ri_hybarid.CE_radius = 15.  #X*radius
+    t_max=1.e6*2.*np.pi
+    Noutputs=1000.
 
-    sim.testparticle_type = 1
+    #sim.integrator="ias15"
+    if 0:
+    	sim.integrator="hybarid"
+    	if not HSR is None:
+    	    sim.ri_hybarid.switch_radius = HSR  #units of Hill radii
+    	else:
+    	    sim.ri_hybarid.switch_radius = 2  #units of Hill radii
+    	sim.ri_hybarid.CE_radius = 20.  #X*radius
 
-    #set up time step
-    sim.dt = 0.001 #time step in units of yr/2pi
+    	#set up time step
+    	if not dt is None:
+    	    sim.dt = dt #time step in units of yr/2pi
+    	else:
+    	    sim.dt = 0.001 #time step in units of yr/2pi
     #set up collision options
     #by default, the end result of the collision always
     #keep the small id number.
+    sim.testparticle_type = 1
     sim.collision="direct"
     sim.collision_resolve = "merge"
     sim.collisions_track_dE = 1
@@ -249,12 +300,16 @@ def one_run(runnumber,infile=""):
     #print sim.collisions[0]
 
 
-    times = np.linspace(0,t_max,Noutputs)
 
+    times = np.logspace(1,np.log10(t_max),Noutputs)
+    E0 = sim.calculate_energy()
+    start_t = timing.time()
     #call integration
-    finalstatus,end,nstep=integrate(sim,times,outfile)
-
-
+    finalstatus,end,nstep,bad_dt,dEs=integrate(sim,times,outfile)
+    #Final processing
+    #bad_dt = sim.ri_hybarid.timestep_too_large_warning
+    dE = np.abs((dEs - E0)/E0)
+    time = timing.time() - start_t
     #total number of planets left
     npcount=len(sim.particles)-1
     #total number of earth type planet left
@@ -266,19 +321,19 @@ def one_run(runnumber,infile=""):
             necount+=1
         nstep[p.id-1]=int(sim.t/sim.dt)
 
-    datadump=[init,end,nstep,finalstatus,npcount,necount]
 
+    datadump=[init,end,nstep,finalstatus,npcount,necount,HSR,dt,dE,bad_dt,time]
+    
     def write_outcome(infofile,datadump):
         pickle.dump(datadump,open(infofile,"w"))
         return
     write_outcome(infofile, datadump)
-    os.chdir('../')
     print 'exit run', runnumber
     return
 
-def main():
+def main(start=1):
     pool = mp.Pool(processes=num_proc)
-    pool.map(one_run,range(1,max_runs+1))
+    pool.map(one_run,range(start,max_runs+start))
 
     return
 if __name__=='__main__':
@@ -296,3 +351,6 @@ if __name__=='__main__':
         abspath=basename
         infile="big.txt"
         one_run(1,infile)
+    else:
+        start=eval(sys.argv[1])
+        main(start)
