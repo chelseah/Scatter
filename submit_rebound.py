@@ -36,7 +36,7 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     sim.add(m=1., r=0.005)
     for i in range(len(mass_pl)):
         sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i],id=(i+1))
-    #sim.move_to_com()
+    sim.move_to_com()
     for p in sim.particles:
         print p
     return sim
@@ -146,7 +146,7 @@ def integrate(sim,times,outfile):
         for p in sim.particles:
             if p.id==0:
                 continue
-            if p.a>100: 
+            if p.a>100:
                 mid = p.id
                 peject=p
         if not peject is None:
@@ -225,7 +225,7 @@ def one_run(runnumber,infile=""):
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
     t_max=1.e6*2*np.pi
-    Noutputs=10000.
+    Noutputs=5000.#10000.
 
     sim.integrator="ias15"
     #sim.integrator="hybrid"
