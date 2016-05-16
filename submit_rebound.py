@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time as timing
 from setting import *
 import os
 import numpy as np
@@ -14,14 +15,14 @@ def check_for_bad_dt(sim):
     
     par = sim.particles
     p0 = sim.particles[0]                                      #star
-    p = sim.particles[sim.N_active]                            #planet
+    p = sim.particles[1]                            #planet
     dx = p.x - p0.x
     dy = p.y - p0.y
     dz = p.z - p0.z
     mh = (p.m/(3*p0.m))**(1./3.)
     rhill_p = mh*(dx*dx + dy*dy + dz*dz)**(0.5)               #hill radius planet
     vmax = 0                                                  #max relative velocity squared
-    for i in xrange(sim.N_active,sim.N):
+    for i in xrange(2,sim.N):
         dx_i = par[i].x - p0.x
         dy_i = par[i].y - p0.y
         dz_i = par[i].z - p0.z
@@ -32,10 +33,12 @@ def check_for_bad_dt(sim):
         dvy = par[i].vy - p.vy
         dvz = par[i].vz - p.vz
         v = (dvx*dvx + dvy*dvy + dvz*dvz)**(0.5)
+        print 'v',v,dvx,dvy,dvz
         if v > vmax:
             vmax = v
     HSR = sim.ri_hybarid.switch_radius
     min_dt = HSR*rh_sum / vmax
+    print 'vmax',vmax,HSR*rh_sum,min_dt,HSR
     if(min_dt < 4*sim.dt):
         bad_dt = 1                                           #factor of 4 for extra wiggle room
     return bad_dt
@@ -76,11 +79,11 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
 def submit(abspath,subfile,start=1):
     #create the submission file on the cluster
     fout=open(subfile,mode='w')
-    fout.write("#!/bin/csh\n")
+    fout.write("#!/bin/bash\n")
     fout.write('#PBS -l nodes=1:ppn=8\n')
     fout.write('#PBS -q workq\n')
     fout.write('#PBS -r n \n')
-    fout.write('#PBS -l walltime=06:00:00\n')
+    fout.write('#PBS -l walltime=48:00:00\n')
     fout.write('#PBS -N rebound_kepler\n')
     fout.write('source %sbin/activate\n'% pythonpath)
     fout.write('cd %s\n' % abspath)
@@ -101,11 +104,12 @@ def orbit2str(particle):
 def saveorbit(outfile,sim):
     #save the orbits elements to a file
     fout=open(outfile,mode="a")
+    E=sim.calculate_energy()
     for p in sim.particles:
         if p.id==0:
             continue
         line=orbit2str(p)
-        fout.write("%f %d %s\n" % (sim.t,p.id,line))
+        fout.write("%f %15.12f %d %s\n" % (sim.t,E, p.id,line))
     fout.close()
     return
 
@@ -123,7 +127,7 @@ def read_init(infile):
     M_pl=data[:,9]
     return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
 
-def init_orbit():
+def init_orbit(randomstat=1):
     #initial the basic param array for a system
     mass_pl=np.zeros(N_pl)
     a_pl=np.zeros(N_pl)
@@ -136,6 +140,9 @@ def init_orbit():
     mass_pl[2]=1.e-3
 
     a_inner,a_pl[:3]=set_hill(mass_pl[:3])
+    #a_pl[0]=1.91
+    #a_pl[1]=2.31
+    #a_pl[2]=1.07
     #initial semi-major axis and masses of super earths,
     #in solar units
     M_earth=1./300./1000.
@@ -149,15 +156,16 @@ def init_orbit():
     a_pl[5]=0.5
 
     #need to modify in the future how this is set up
-    r_pl[:2]=5e-4
+    r_pl[:3]=5e-4
     r_pl[3:]=1e-4
 
     #set up other orbital elements
-    e_pl=rayleigh.rvs(scale=sigma_e,size=6)
-    i_pl=rayleigh.rvs(scale=sigma_i,size=6)
-    omega_pl=2.*np.pi*np.random.randn(N_pl)
-    Omega_pl=2.*np.pi*np.random.randn(N_pl)
-    M_pl=2.*np.pi*np.random.randn(N_pl)
+    e_pl=rayleigh.rvs(scale=sigma_e,size=6,random_state=randomstat)
+    i_pl=rayleigh.rvs(scale=sigma_i,size=6,random_state=randomstat+1000)
+    np.random.seed(randomstat+2000)
+    omega_pl=2.*np.pi*np.random.rand(N_pl)
+    Omega_pl=2.*np.pi*np.random.rand(N_pl)
+    M_pl=2.*np.pi*np.random.rand(N_pl)
 
     return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl] 
 
@@ -168,6 +176,7 @@ def integrate(sim,times,outfile):
     nstep=np.zeros(Ncurrent-1)
     end=np.zeros([Ncurrent-1,8])
     bad_dts=np.zeros(len(times))
+    dEs=np.zeros(len(times))
     for j,time in enumerate(times):
         sim.integrate(time)
         #deal with Escape
@@ -220,7 +229,8 @@ def integrate(sim,times,outfile):
 
             saveorbit(outfile,sim)#end)#sim)
         bad_dts[j] = check_for_bad_dt(sim)
-    return [finalstatus,end,nstep,baddt]
+    	dEs[j] = sim.calculate_energy()
+    return [finalstatus,end,nstep,bad_dts,dEs]
 
 def one_run(runnumber,infile="",HSR=None,dt=None):
     #flow for one run
@@ -231,17 +241,14 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     #initialize the run
     t=0
     if infile=="":
-        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit()
+        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit(runnumber)
     else:
         t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
-    rundir="run%.4d" % runnumber
-    os.system("mkdir %s" % rundir)
-    os.chdir(rundir)
 
-    outfile="rebound%.4d.txt" % runnumber
+    outfile="runias/rebound%.4d.txt" % runnumber
     fout=open(outfile,"w")
     fout.close()
-    infofile="runrebound%.4d.pkl" % runnumber
+    infofile="runias/runrebound%.4d.pkl" % runnumber
 
 
     
@@ -260,25 +267,27 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
-    t_max=1.e5*2.*np.pi
+    t_max=1.e6*2.*np.pi
     Noutputs=1000.
 
-    sim.integrator="hybarid"
-    if not HSE is None:
-        sim.ri_hybarid.switch_ratio = HSE  #units of Hill radii
-    else:
-        sim.ri_hybarid.switch_ratio = 2  #units of Hill radii
-    sim.ri_hybarid.CE_radius = 20.  #X*radius
-    sim.testparticle_type = 1
+    #sim.integrator="ias15"
+    if 0:
+    	sim.integrator="hybarid"
+    	if not HSR is None:
+    	    sim.ri_hybarid.switch_radius = HSR  #units of Hill radii
+    	else:
+    	    sim.ri_hybarid.switch_radius = 2  #units of Hill radii
+    	sim.ri_hybarid.CE_radius = 20.  #X*radius
 
-    #set up time step
-    if not dt is None:
-        sim.dt = dt #time step in units of yr/2pi
-    else:
-        sim.dt = 0.001 #time step in units of yr/2pi
+    	#set up time step
+    	if not dt is None:
+    	    sim.dt = dt #time step in units of yr/2pi
+    	else:
+    	    sim.dt = 0.001 #time step in units of yr/2pi
     #set up collision options
     #by default, the end result of the collision always
     #keep the small id number.
+    sim.testparticle_type = 1
     sim.collision="direct"
     sim.collision_resolve = "merge"
     sim.collisions_track_dE = 1
@@ -293,10 +302,10 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration
-    finalstatus,end,nstep,bad_dt=integrate(sim,times,outfile)
+    finalstatus,end,nstep,bad_dt,dEs=integrate(sim,times,outfile)
     #Final processing
     #bad_dt = sim.ri_hybarid.timestep_too_large_warning
-    dE = abs((sim.calculate_energy() - E0)/E0)
+    dE = np.abs((dEs - E0)/E0)
     time = timing.time() - start_t
     #total number of planets left
     npcount=len(sim.particles)-1
@@ -315,7 +324,6 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
         pickle.dump(datadump,open(infofile,"w"))
         return
     write_outcome(infofile, datadump)
-    os.chdir('../')
     print 'exit run', runnumber
     return
 
