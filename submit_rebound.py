@@ -76,7 +76,7 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     sim.move_to_com()
     return sim
 
-def submit(abspath,subfile,start=1):
+def submit(abspath,start=1):
     #create the submission file on the cluster
     fout=open(subfile,mode='w')
     fout.write("#!/bin/bash\n")
@@ -241,19 +241,23 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
     #initialize the run
     t=0
-    if infile=="":
-        mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit(runnumber)
-    else:
-        t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
-
-    outfile="runias/rebound%.4d.txt" % runnumber
+    outfile=rundir+"rebound%.4d.txt" % runnumber
     fout=open(outfile,"w")
     fout.close()
-    infofile="runias/runrebound%.4d.pkl" % runnumber
+    infofile=rundir+"runrebound%.4d.pkl" % runnumber
 
+    if not frombin:
+        if infile=="":
+            mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit(runnumber)
+        else:
+            t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=read_init(infile)
 
-
-    sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=t)
+        sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=t)
+    else:
+        if binfile=="":
+            binfile=rundir+"rebound%.4d.bin" % runnumber
+        
+        sim=rebound.Simulation.from_file(binfile)
     #return
     saveorbit(outfile,sim)#save the initial orbits to output file file
     init=[]
@@ -269,11 +273,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     # set up integrator (TO BE EDITED)
     #t_max=t_orb*365.25*(a_inner)**1.5
 
-    t_max=1.e6*2.*np.pi
-    Noutputs=1000.
-
-    #sim.integrator="ias15"
-    if 0:
+    if integrator=="hybarid":
     	sim.integrator="hybarid"
     	if not HSR is None:
     	    sim.ri_hybarid.switch_radius = HSR  #units of Hill radii
@@ -286,6 +286,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     	    sim.dt = dt #time step in units of yr/2pi
     	else:
     	    sim.dt = 0.001 #time step in units of yr/2pi
+    sim.t=t
     #set up collision options
     #by default, the end result of the collision always
     #keep the small id number.
@@ -301,11 +302,17 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
 
 
-    times = np.logspace(1,np.log10(t_max),Noutputs)
+    times = np.logspace(np.log10(t+1),np.log10(t+t_max),Noutputs)
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration
     finalstatus,end,nstep,bad_dt,dEs=integrate(sim,times,outfile)
+   
+    if checkpoint:
+        checkpointfile=rundir+"rebound%.4d.bin" % runnumber
+        sim.save(checkpointfile)
+    
+    
     #Final processing
     #bad_dt = sim.ri_hybarid.timestep_too_large_warning
     dE = np.abs((dEs - E0)/E0)
@@ -345,12 +352,9 @@ if __name__=='__main__':
         main()
     elif sys.argv[1]=='submit':
         abspath=basename
-        subfile="qsubrebound"
-        submit(abspath,subfile)
+        submit(abspath)
     elif sys.argv[1]=='restart':
-        abspath=basename
-        infile="big.txt"
-        one_run(1,infile)
+        one_run(1,restartinput)
     else:
         start=eval(sys.argv[1])
         main(start)
