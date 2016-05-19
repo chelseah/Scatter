@@ -79,9 +79,11 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     sim.move_to_com()
     return sim
 
-def submit(abspath,start=1):
+def submit(abspath,start=1,subfileauto=""):
     #create the submission file on the cluster
-    fout=open(subfile,mode='w')
+    if subfileauto=="":
+        subfileauto=subfile
+    fout=open(subfileauto,mode='w')
     fout.write("#!/bin/bash\n")
     fout.write('#PBS -l nodes=1:ppn=8\n')
     fout.write('#PBS -q workq\n')
@@ -305,7 +307,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
 
 
-    times = np.logspace(np.log10(t+1),np.log10(t+t_max),Noutputs)
+    times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration

@@ -21,12 +21,12 @@ statuscode={"eject":2,"star":3,"collision":1,"survive":0}
 #path settings
 basename='/home/cxhuang/mnt/scatt_Kepler/'
 pythonpath='/home/cxhuang/src/virtualenv-1.5.2/ve/'
-rundir='runexp1/'
+rundir='run_exp1/'
 subfile="qsubrebound"
 
 #integration settings
 integrator="ias15"
-tmax=1.e6*2.*np.pi
+t_max=1.e6*2.*np.pi
 Noutputs=1000
 
 #restart settings
@@ -36,4 +36,4 @@ frombin=False
 binfile="checkpoint.txt"
 
 #output settings
-checkpoint=False
+checkpoint=True
