@@ -7,7 +7,7 @@ from scipy.stats import rayleigh
 def set_hill(mass_pl):
     i_hill=0
     while (i_hill<1):
-        spacing=np.random.randn(3)
+        spacing=np.random.rand(3)
         a_inner=a_min+(a_max-a_min)*np.random.rand()
         a_max_i=a_max
         a_aux=a_inner+(a_max_i-a_inner)*spacing
