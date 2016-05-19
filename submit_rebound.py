@@ -12,7 +12,7 @@ import pickle
 
 def check_for_bad_dt(sim):
     bad_dt = 0
-    
+
     par = sim.particles
     p0 = sim.particles[0]                                      #star
     p = sim.particles[1]                            #planet
@@ -323,7 +323,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
 
     datadump=[init,end,nstep,finalstatus,npcount,necount,HSR,dt,dE,bad_dt,time]
-    
+
     def write_outcome(infofile,datadump):
         pickle.dump(datadump,open(infofile,"w"))
         return
