@@ -51,10 +51,13 @@ def set_hill(mass_pl):
     a_pl=np.zeros(3)
     while (a_pl[0]<1):
         while (i_hill<1):
-            spacing=np.random.randn(3)
+            spacing=np.random.rand(3)
+            print 'spacing,',spacing
             a_inner=a_min+(a_max-a_min)*np.random.rand()
             a_max_i=a_max
+            print 'amax_i,',a_max_i
             a_aux=a_inner+(a_max_i-a_inner)*spacing
+            print 'a_aux,',a_aux
             a_pl=np.sort(a_aux)
 
             R_hill_12=((mass_pl[0]+mass_pl[1])/3)**(1./3.)*(a_pl[0]+a_pl[1])/2.
