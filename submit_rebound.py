@@ -234,6 +234,11 @@ def integrate(sim,times,outfile):
         if not outfile is None:
 
             saveorbit(outfile,sim)#end)#sim)
+        if checkpoint:
+            checkpointfile=os.path.splitext(outfile)[0]+'.bin'
+            sim.save(checkpointfile)
+    
+
         bad_dts[j] = check_for_bad_dt(sim)
     	dEs[j] = sim.calculate_energy()
     return [finalstatus,end,nstep,bad_dts,dEs]
@@ -283,7 +288,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     	if not HSR is None:
     	    sim.ri_hybarid.switch_radius = HSR  #units of Hill radii
     	else:
-    	    sim.ri_hybarid.switch_radius = 2  #units of Hill radii
+    	    sim.ri_hybarid.switch_radius = 8  #units of Hill radii
     	sim.ri_hybarid.CE_radius = 20.  #X*radius
 
     	#set up time step
@@ -307,7 +312,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
 
 
-    times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
+    times = np.logspace(np.log10(t+1),np.log10(t+t_max),Noutputs)
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration
