@@ -12,7 +12,7 @@ import pickle
 
 def check_for_bad_dt(sim):
     bad_dt = 0
-    
+
     par = sim.particles
     p0 = sim.particles[0]                                      #star
     p = sim.particles[1]                            #planet
@@ -269,7 +269,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     else:
         if binfile=="":
             binfile=rundir+"rebound%.4d.bin" % runnumber
-        
+
         sim=rebound.Simulation.from_file(binfile)
     #return
     saveorbit(outfile,sim)#save the initial orbits to output file file
@@ -320,12 +320,12 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     start_t = timing.time()
     #call integration
     finalstatus,end,nstep,bad_dt,dEs=integrate(sim,times,outfile)
-   
+
     if checkpoint:
         checkpointfile=rundir+"rebound%.4d.bin" % runnumber
         sim.save(checkpointfile)
-    
-    
+
+
     #Final processing
     #bad_dt = sim.ri_hybarid.timestep_too_large_warning
     dE = np.abs((dEs - E0)/E0)
@@ -343,7 +343,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
 
     datadump=[init,end,nstep,finalstatus,npcount,necount,HSR,dt,dE,bad_dt,time]
-    
+
     def write_outcome(infofile,datadump):
         pickle.dump(datadump,open(infofile,"w"))
         return
