@@ -237,7 +237,7 @@ def integrate(sim,times,outfile):
         if checkpoint:
             checkpointfile=os.path.splitext(outfile)[0]+'.bin'
             sim.save(checkpointfile)
-    
+
 
         bad_dts[j] = check_for_bad_dt(sim)
     	dEs[j] = sim.calculate_energy()
