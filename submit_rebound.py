@@ -21,6 +21,7 @@ def check_for_bad_dt(sim):
     dz = p.z - p0.z
     mh = (p.m/(3*p0.m))**(1./3.)
     rhill_p = mh*(dx*dx + dy*dy + dz*dz)**(0.5)               #hill radius planet
+    rh_sum = rhill_p
     vmax = 0                                                  #max relative velocity squared
     for i in xrange(2,sim.N):
         dx_i = par[i].x - p0.x
@@ -28,7 +29,7 @@ def check_for_bad_dt(sim):
         dz_i = par[i].z - p0.z
         mh_i = (par[i].m/(3*p0.m))**(1./3.)
         rhill_p_i = mh_i*(dx_i*dx_i + dy_i*dy_i + dz_i*dz_i)**(0.5)
-        rh_sum = rhill_p + rhill_p_i
+        rh_sum+=rhill_p_i
         dvx = par[i].vx - p.vx
         dvy = par[i].vy - p.vy
         dvz = par[i].vz - p.vz
@@ -122,14 +123,14 @@ def read_init(infile):
     #need to reload orbit elements from end result of a file.
     data=np.loadtxt(infile, skiprows=1)
     t=data[:,0][0]
-    mass_pl=data[:,2]
-    r_pl=data[:,3]
-    a_pl=data[:,4]
-    e_pl=data[:,5]
-    i_pl=np.rad(data[:,6])
-    Omega_pl=np.rad(data[:,7])
-    omega_pl=np.rad(data[:,8])
-    M_pl=np.rad(data[:,9])
+    mass_pl=data[:,3]
+    r_pl=data[:,4]
+    a_pl=data[:,5]
+    e_pl=data[:,6]
+    i_pl=data[:,7]
+    Omega_pl=data[:,8]
+    omega_pl=data[:,9]
+    M_pl=data[:,10]
     return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
 def init_orbit(randomstat=1):
@@ -183,29 +184,31 @@ def integrate(sim,times,outfile):
     bad_dts=np.zeros(len(times))
     dEs=np.zeros(len(times))
     for j,time in enumerate(times):
-        sim.integrate(time)
+        try:
+            sim.integrate(time)
         #for p in sim.particles:
             #print p
             #deal with Escape
-
-        #print error
-        max_d2 = 0.
-        peject=None
-
-
-        for p in sim.particles:
-            if p.id==0:
-                continue
-            if p.a>100:
-                mid = p.id
-                peject=p
-        if not peject is None:
-            end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
-            sim.remove(id=mid)
-            nstep[mid-1]=int(sim.t/sim.dt)
-            Ncurrent-=1
-            finalstatus[mid-1]=statuscode['eject']
-            #print "final status",mid,"eject"
+        except rebound.Escape as error:
+            #print error
+            max_d2 = 0.
+            peject=None
+            for p in sim.particles:
+                if p.id==0:
+                    continue
+                d2 = p.x*p.x + p.y*p.y + p.z*p.z
+                if d2>max_d2:
+                    max_d2 = d2
+                    mid = p.id
+                    peject=p
+       
+            if not peject is None:
+                end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
+                sim.remove(id=mid)
+                nstep[mid-1]=int(sim.t/sim.dt)
+                Ncurrent-=1
+                finalstatus[mid-1]=statuscode['eject']
+                #print "final status",mid,"eject"
         #deal with collision
         if Ncurrent>sim.N:
             #print "collision"
@@ -306,7 +309,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     sim.collisions_track_dE = 1
 
     #set up escape options
-    #sim.exit_max_distance = 100.
+    sim.exit_max_distance = 100.
     #sim.exit_min_distance = 0.01
     #print sim.collisions[0]
 

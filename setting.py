@@ -21,7 +21,7 @@ statuscode={"eject":2,"star":3,"collision":1,"survive":0}
 #path settings
 basename='/home/cxhuang/mnt/scatt_Kepler/'
 pythonpath='/home/cxhuang/src/virtualenv-1.5.2/ve/'
-rundir='run_exp1/'
+rundir='./'
 subfile="qsubrebound"
 
 #integration settings
@@ -30,7 +30,7 @@ t_max=1.e6*2.*np.pi
 Noutputs=1000
 
 #restart settings
-restartinput="big.txt"
+restartinput="testeject.txt"
 #restart from binary file
 frombin=False
 binfile="checkpoint.txt"
