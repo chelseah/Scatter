@@ -323,7 +323,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
 
 
-    times = np.logspace(np.log10(t+1),np.log10(t+t_max),Noutputs)
+    times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration
