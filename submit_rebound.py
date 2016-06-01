@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import time as timing
+import setting as st
 from setting import *
 import os
 import numpy as np
@@ -86,7 +87,7 @@ def submit(abspath,start=1,subfileauto=""):
         subfileauto=subfile
     fout=open(subfileauto,mode='w')
     fout.write("#!/bin/bash\n")
-    fout.write('#PBS -l nodes=1:ppn=8\n')
+    fout.write('#PBS -l nodes=1:ppn=%d\n' % max_runs)
     fout.write('#PBS -q workq\n')
     fout.write('#PBS -r n \n')
     fout.write('#PBS -l walltime=48:00:00\n')
@@ -105,6 +106,7 @@ def orbit2str(particle):
     #write the orbit elements to a string
     orbit=particle.orbit
     string="%15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f"%(particle.m,particle.r,orbit.a,orbit.e,orbit.inc,orbit.Omega,orbit.omega,orbit.M)
+    #print string
     return string
 
 def saveorbit(outfile,sim):
@@ -141,9 +143,12 @@ def init_orbit(randomstat=1):
 
     #initial semi-major axis and masses of gas giant,
     #in solar units
-    mass_pl[0]=1.e-3
-    mass_pl[1]=1.e-3
-    mass_pl[2]=1.e-3
+    #fixed 
+    #mass_pl[0]=1.e-3
+    #mass_pl[1]=1.e-3
+    #mass_pl[2]=1.e-3
+    #uniform in a mass range
+    mass_pl[:3]=0.5+np.random.random(3)*1.5*1.e-3
 
     a_inner,a_pl[:3]=set_hill(mass_pl[:3])
     #a_pl[0]=1.91
@@ -177,11 +182,11 @@ def init_orbit(randomstat=1):
 
 def integrate(sim,times,outfile):
     #the main integration routine
-    Ncurrent = sim.N
-    finalstatus=np.zeros(Ncurrent-1)
-    nstep=np.zeros(Ncurrent-1)
-    end=np.zeros([Ncurrent-1,8])
+    finalstatus=np.zeros(N_pl)
+    nstep=np.zeros(N_pl)
+    end=np.zeros([N_pl,8])
     bad_dts=np.zeros(len(times))
+    Ncurrent = sim.N
     dEs=np.zeros(len(times))
     for j,time in enumerate(times):
         try:
@@ -203,6 +208,7 @@ def integrate(sim,times,outfile):
                     peject=p
        
             if not peject is None:
+                print mid
                 end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
                 sim.remove(id=mid)
                 nstep[mid-1]=int(sim.t/sim.dt)
@@ -231,8 +237,10 @@ def integrate(sim,times,outfile):
             Ncurrent=sim.N
         #print orbit2str(sim.particles[1].orbit)
         for p in sim.particles:
+            print p.id
             if p.id==0:
                 continue
+
             end[p.id-1,:]=np.array(list(orbit2str(p).split()),dtype='f8')
         if not outfile is None:
 
@@ -242,7 +250,7 @@ def integrate(sim,times,outfile):
             sim.save(checkpointfile)
     
 
-        bad_dts[j] = check_for_bad_dt(sim)
+        #bad_dts[j] = check_for_bad_dt(sim)
     	dEs[j] = sim.calculate_energy()
     return [finalstatus,end,nstep,bad_dts,dEs]
 
@@ -258,7 +266,6 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     fout=open(outfile,"w")
     fout.close()
     infofile=rundir+"runrebound%.4d.pkl" % runnumber
-
     if not frombin:
         if infile=="":
             mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl=init_orbit(runnumber)
@@ -267,10 +274,11 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
         sim = callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=t)
     else:
-        if binfile=="":
+        if st.binfile=="":
             binfile=rundir+"rebound%.4d.bin" % runnumber
 
         sim=rebound.Simulation.from_file(binfile)
+        t=sim.t
     #return
     saveorbit(outfile,sim)#save the initial orbits to output file file
     init=[]
@@ -352,9 +360,9 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     return
 
 def main(start=1):
-    pool = mp.Pool(processes=num_proc)
-    pool.map(one_run,range(start,max_runs+start))
-
+    #pool = mp.Pool(processes=num_proc)
+    #pool.map(one_run,range(start,max_runs+start))
+    one_run(start)
     return
 if __name__=='__main__':
     if len(sys.argv)==1:
