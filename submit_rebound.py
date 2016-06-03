@@ -201,7 +201,7 @@ def integrate(sim,times,outfile):
                     max_d2 = d2
                     mid = p.id
                     peject=p
-       
+
             if not peject is None:
                 end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
                 sim.remove(id=mid)

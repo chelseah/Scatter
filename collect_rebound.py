@@ -19,7 +19,7 @@ def gather_run(runfile,nps,nele=8):
         nstep[i]=orbit_i.shape[0]
         if nstep[i]>maxstep:
             maxstep=nstep[i]
-            pend=i+1 
+            pend=i+1
     bad_dt=np.zeros(maxstep)
     #dEs=np.zeros(maxstep)
     orbit_i=data[data[:,1]==pend]
@@ -27,29 +27,29 @@ def gather_run(runfile,nps,nele=8):
     HSR=np.nan
     dt=np.nan
     time=48.*3600.
-    
+
     survived=np.where(nstep==maxstep)[0]
     npcount=len(survived)
     necount=len(survived[survived>2])
     finalstatus=np.zeros(nps)
-    collision=False 
+    collision=False
     for i in xrange(nps):
         if i in survived:
             continue
         else:
           if i==0:
             finalstatus[i]=2
-          else: 
-            finalstatus[i]=1 
-             
+          else:
+            finalstatus[i]=1
+
     #get summary info
-    #statuscode: 
+    #statuscode:
     #0-survive
-    #1-collision 
+    #1-collision
     #2-eject
     #3-star
-    
-        
+
+
 
     return [init,end,nstep,finalstatus,npcount,necount,HSR,dt,dE,bad_dt,time]
 
@@ -144,7 +144,7 @@ def main():
     rmin=1
     rmax=160
     nps=6
-    inpath="run_exp2/"
+    inpath="untracked_testing/run_expEmily/run_exp1_emily/"
     for i in xrange(rmin,rmax):
         runfile=inpath+"rebound%.4d.txt" % i
         pklfile=inpath+"runrebound%.4d.pkl" % i
