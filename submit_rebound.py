@@ -144,11 +144,11 @@ def init_orbit(randomstat=1):
     #initial semi-major axis and masses of gas giant,
     #in solar units
     #fixed 
-    #mass_pl[0]=1.e-3
-    #mass_pl[1]=1.e-3
-    #mass_pl[2]=1.e-3
+    mass_pl[0]=1.e-3
+    mass_pl[1]=1.e-3
+    mass_pl[2]=1.e-3
     #uniform in a mass range
-    mass_pl[:3]=0.5+np.random.random(3)*1.5*1.e-3
+    #mass_pl[:3]=0.5+np.random.random(3)*1.5*1.e-3
 
     a_inner,a_pl[:3]=set_hill(mass_pl[:3])
     #a_pl[0]=1.91
@@ -198,6 +198,7 @@ def integrate(sim,times,outfile):
             #print error
             max_d2 = 0.
             peject=None
+            #check distance to be >1000, or (e>1 and distance>100)
             for p in sim.particles:
                 if p.id==0:
                     continue
@@ -208,13 +209,24 @@ def integrate(sim,times,outfile):
                     peject=p
        
             if not peject is None:
-                print mid
-                end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
-                sim.remove(id=mid)
-                nstep[mid-1]=int(sim.t/sim.dt)
-                Ncurrent-=1
-                finalstatus[mid-1]=statuscode['eject']
-                #print "final status",mid,"eject"
+                if max_d2>1000:
+                    print mid
+                    end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
+                    sim.remove(id=mid)
+                    nstep[mid-1]=int(sim.t/sim.dt)
+                    Ncurrent-=1
+                    finalstatus[mid-1]=statuscode['eject']
+                    #print "final status",mid,"eject"
+                elif max_d2>100:
+                    orbit=particle.orbit
+                    if orbit.e>1:
+                        print mid
+                        end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
+                        sim.remove(id=mid)
+                        nstep[mid-1]=int(sim.t/sim.dt)
+                        Ncurrent-=1
+                        finalstatus[mid-1]=statuscode['eject']
+
         #deal with collision
         if Ncurrent>sim.N:
             #print "collision"
