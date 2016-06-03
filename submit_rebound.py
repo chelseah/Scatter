@@ -148,7 +148,7 @@ def init_orbit(randomstat=1):
     mass_pl[1]=1.e-3
     mass_pl[2]=1.e-3
     #uniform in a mass range
-    #mass_pl[:3]=0.5+np.random.random(3)*1.5*1.e-3
+    #mass_pl[:3]=(0.5+np.random.random(3)*1.5)*1.e-3
 
     a_inner,a_pl[:3]=set_hill(mass_pl[:3])
     #a_pl[0]=1.91
