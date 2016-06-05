@@ -7,70 +7,11 @@ import numpy as np
 import scipy as sp
 import rebound
 import sys
-from scipy.stats import rayleigh
-import multiprocessing as mp
 import pickle
-
-def check_for_bad_dt(sim):
-    bad_dt = 0
-
-    par = sim.particles
-    p0 = sim.particles[0]                                      #star
-    p = sim.particles[1]                            #planet
-    dx = p.x - p0.x
-    dy = p.y - p0.y
-    dz = p.z - p0.z
-    mh = (p.m/(3*p0.m))**(1./3.)
-    rhill_p = mh*(dx*dx + dy*dy + dz*dz)**(0.5)               #hill radius planet
-    rh_sum = rhill_p
-    vmax = 0                                                  #max relative velocity squared
-    for i in xrange(2,sim.N):
-        dx_i = par[i].x - p0.x
-        dy_i = par[i].y - p0.y
-        dz_i = par[i].z - p0.z
-        mh_i = (par[i].m/(3*p0.m))**(1./3.)
-        rhill_p_i = mh_i*(dx_i*dx_i + dy_i*dy_i + dz_i*dz_i)**(0.5)
-        rh_sum+=rhill_p_i
-        dvx = par[i].vx - p.vx
-        dvy = par[i].vy - p.vy
-        dvz = par[i].vz - p.vz
-        v = (dvx*dvx + dvy*dvy + dvz*dvz)**(0.5)
-        print 'v',v,dvx,dvy,dvz
-        if v > vmax:
-            vmax = v
-    HSR = sim.ri_hybarid.switch_radius
-    min_dt = HSR*rh_sum / vmax
-    print 'vmax',vmax,HSR*rh_sum,min_dt,HSR
-    if(min_dt < 4*sim.dt):
-        bad_dt = 1                                           #factor of 4 for extra wiggle room
-    return bad_dt
-
-
-
-def set_hill(mass_pl):
-    #set up the giant planets so that they will be instable at one point
-    i_hill=0
-    a_pl=np.zeros(3)
-    while (a_pl[0]<1):
-        while (i_hill<1):
-            spacing=np.random.rand(3)
-            print 'spacing,',spacing
-            a_inner=a_min+(a_max-a_min)*np.random.rand()
-            a_max_i=a_max
-            print 'amax_i,',a_max_i
-            a_aux=a_inner+(a_max_i-a_inner)*spacing
-            print 'a_aux,',a_aux
-            a_pl=np.sort(a_aux)
-
-            R_hill_12=((mass_pl[0]+mass_pl[1])/3)**(1./3.)*(a_pl[0]+a_pl[1])/2.
-            R_hill_23=((mass_pl[1]+mass_pl[2])/3)**(1./3.)*(a_pl[1]+a_pl[2])/2.
-            diff_a_12=abs(a_pl[1]-a_pl[0])
-            diff_a_23=abs(a_pl[2]-a_pl[1])
-
-            if(diff_a_12>k_Hill*R_hill_12 and diff_a_23>k_Hill*R_hill_23):
-                break
-    return [a_inner,a_pl]
-
+from util import check_for_bad_dt,set_hill
+from init import init_orbit, read_init
+from submit_nodes import submit
+from WJgrow import add_mass
 def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     #initialize a rebound run
     sim = rebound.Simulation()
@@ -80,27 +21,6 @@ def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
         sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i],id=(i+1))
     sim.move_to_com()
     return sim
-
-def submit(abspath,start=1,subfileauto=""):
-    #create the submission file on the cluster
-    if subfileauto=="":
-        subfileauto=subfile
-    fout=open(subfileauto,mode='w')
-    fout.write("#!/bin/bash\n")
-    fout.write('#PBS -l nodes=1:ppn=%d\n' % max_runs)
-    fout.write('#PBS -q workq\n')
-    fout.write('#PBS -r n \n')
-    fout.write('#PBS -l walltime=48:00:00\n')
-    fout.write('#PBS -N rebound_kepler\n')
-    fout.write('source %sbin/activate\n'% pythonpath)
-    fout.write('cd %s\n' % abspath)
-    if start>1:
-        fout.write('%sbin/python submit_rebound.py %d' % (pythonpath,start))
-    else:
-        fout.write('%sbin/python submit_rebound.py' % pythonpath)
-    fout.close()
-    #os.system('qsub %s' % subfile)
-    return
 
 def orbit2str(particle):
     #write the orbit elements to a string
@@ -121,64 +41,6 @@ def saveorbit(outfile,sim):
     fout.close()
     return
 
-def read_init(infile):
-    #need to reload orbit elements from end result of a file.
-    data=np.loadtxt(infile, skiprows=1)
-    t=data[:,0][0]
-    mass_pl=data[:,3]
-    r_pl=data[:,4]
-    a_pl=data[:,5]
-    e_pl=data[:,6]
-    i_pl=data[:,7]
-    Omega_pl=data[:,8]
-    omega_pl=data[:,9]
-    M_pl=data[:,10]
-    return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
-
-def init_orbit(randomstat=1):
-    #initial the basic param array for a system
-    mass_pl=np.zeros(N_pl)
-    a_pl=np.zeros(N_pl)
-    r_pl=np.zeros(N_pl) #changed to radius rather than density
-
-    #initial semi-major axis and masses of gas giant,
-    #in solar units
-    #fixed 
-    mass_pl[0]=1.e-3
-    mass_pl[1]=1.e-3
-    mass_pl[2]=1.e-3
-    #uniform in a mass range
-    #mass_pl[:3]=0.5+np.random.random(3)*1.5*1.e-3
-
-    a_inner,a_pl[:3]=set_hill(mass_pl[:3])
-    #a_pl[0]=1.91
-    #a_pl[1]=2.31
-    #a_pl[2]=1.07
-    #initial semi-major axis and masses of super earths,
-    #in solar units
-    M_earth=1./300./1000.
-    mass_pl[3]=5*M_earth
-    mass_pl[4]=10*M_earth
-    mass_pl[5]=15*M_earth
-
-    #need to move to setting file in the future
-    a_pl[3]=0.1
-    a_pl[4]=0.25
-    a_pl[5]=0.5
-
-    #need to modify in the future how this is set up
-    r_pl[:3]=5e-4
-    r_pl[3:]=1e-4
-
-    #set up other orbital elements
-    e_pl=rayleigh.rvs(scale=sigma_e,size=6,random_state=randomstat)
-    i_pl=rayleigh.rvs(scale=sigma_i,size=6,random_state=randomstat+1000)
-    np.random.seed(randomstat+2000)
-    omega_pl=2.*np.pi*np.random.rand(N_pl)
-    Omega_pl=2.*np.pi*np.random.rand(N_pl)
-    M_pl=2.*np.pi*np.random.rand(N_pl)
-
-    return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
 def integrate(sim,times,outfile):
     #the main integration routine
@@ -190,9 +52,10 @@ def integrate(sim,times,outfile):
     dEs=np.zeros(len(times))
     for j,time in enumerate(times):
         try:
+            if addmass: 
+                add_mass(sim,time)
+
             sim.integrate(time)
-        #for p in sim.particles:
-            #print p
             #deal with Escape
         except rebound.Escape as error:
             #print error
@@ -267,10 +130,9 @@ def integrate(sim,times,outfile):
     return [finalstatus,end,nstep,bad_dts,dEs]
 
 def one_run(runnumber,infile="",HSR=None,dt=None):
-    #flow for one run
+    #this function controls the flow for one run
 
     #set up the output files and directories (need further modify)
-    np.random.seed()
 
     #initialize the run
     t=0
@@ -299,12 +161,13 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
             continue
         parr=np.array(list(orbit2str(p).split()),dtype='f8')
         init.append(parr)
-    print init
-    #fig = rebound.OrbitPlot(sim)
+    if debug:
+        print init
+        print HSR
+        return
 
 
     # set up integrator (TO BE EDITED)
-    #t_max=t_orb*365.25*(a_inner)**1.5
 
     if integrator=="hybarid":
     	sim.integrator="hybarid"
@@ -372,16 +235,20 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     return
 
 def main(start=1):
-    #pool = mp.Pool(processes=num_proc)
-    #pool.map(one_run,range(start,max_runs+start))
-    one_run(start)
+    if gridsearch:
+        #minpowdt,maxpowdt,numdt = [-4,-1,1] #min/max limits in logspace, i.e. 10**min - 10**max.
+        minpowHSR,maxpowHSR,numHSR = [2,5,4]      #min/max limits in logspace, i.e. 10**min - 10**
+        dt = P_inner/10./365.*2.*np.pi 
+        HSRarr = np.linspace(minpowHSR,maxpowHSR,numHSR)
+        repeat=int(nnodes/numHSR)
+        #print nnodes,repeat
+        one_run(start,HSR=HSRarr[int((start)/repeat)],dt=dt)
+    else:
+        one_run(start)
     return
 if __name__=='__main__':
     if len(sys.argv)==1:
-        #for run in xrange(1, num_runs+1):
-        #    p = mp.Process(target=main)
-        #    p.start()
-
+        
         main()
     elif sys.argv[1]=='submit':
         abspath=basename
