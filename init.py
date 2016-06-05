@@ -22,8 +22,8 @@ def init_orbit(randomstat=1):
 
     while (loop==True):
     #set up other orbital elements
-        e_pl=rayleigh.rvs(scale=0.01,size=N_pl,random_state=randomstat)
-        i_pl=rayleigh.rvs(scale=2*(np.pi/180.),size=N_pl,random_state=randomstat+1000)
+        e_pl=rayleigh.rvs(scale=sigma_e,size=N_pl,random_state=randomstat)
+        i_pl=rayleigh.rvs(scale=sigma_i,size=N_pl,random_state=randomstat+1000)
         np.random.seed(randomstat+2000)
         omega_pl=2.*np.pi*np.random.rand(N_pl)
         Omega_pl=2.*np.pi*np.random.rand(N_pl)
