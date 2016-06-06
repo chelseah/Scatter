@@ -244,7 +244,7 @@ def main(start=1):
         HSRarr = np.linspace(minpowHSR,maxpowHSR,numHSR)
         repeat=int(nnodes/numHSR)
         #print nnodes,repeat
-        one_run(start,HSR=HSRarr[int((start)/repeat)],dt=dt)
+        one_run(start,HSR=HSRarr[int((start-1)/repeat)],dt=dt)
     else:
         one_run(start)
     return
