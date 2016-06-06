@@ -30,7 +30,7 @@ def main():
     for i in xrange(nnodes):
         print i
         subfile=basename+"qsubrebound_%d" % i
-        submit(basename,subfileauto="qsubrebound_%d" % i,start=1+8*i)
+        submit(basename,subfileauto="qsubrebound_%d" % i,start=1+max_runs*i)
         os.system('qsub %s' % subfile)
 
 if __name__=='__main__':
