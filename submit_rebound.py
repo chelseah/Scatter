@@ -196,9 +196,11 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     #sim.exit_min_distance = 0.01
     #print sim.collisions[0]
 
-
-
-    times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
+    ####create linear time step arr#
+    N_acc = t_max/acc_time
+    times=np.linspace(0,t_max*2*np.pi,N_acc)
+    #################################
+    #times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration

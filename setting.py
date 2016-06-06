@@ -6,7 +6,8 @@ sigma_e=0.01
 sigma_i=0.01
 k_Hill=12.
 P_inner=5.
-
+doubling_time=1.e4
+acc_time=doubling_time/1000.
 
 #parallel settings
 max_runs=1
@@ -14,7 +15,6 @@ num_proc = 1
 nnodes=8
 
 #default configuration
-t_orb=1.e7
 N_pl = np.random.random_integers(6,10)
 
 #integration settings

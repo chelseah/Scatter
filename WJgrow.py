@@ -9,10 +9,6 @@ def mass_growth(time, initial_mass,doubling_time):
 def add_mass(sim,time):
     if time<= 4.5*doubling_time*2*np.pi:
 
-        doubling_time = 1.0e4
-        acc_time = doubling_time/1000
-        t_max = 5e4#doubling_time*4.5 + 1.e5
-        N_acc = t_max/acc_time
 
         sp = sim.particles
         mass_list = []
@@ -24,7 +20,7 @@ def add_mass(sim,time):
         accreting_planet = np.where(np.array(mass_list)>=threshold)[0]+1
         for i in accreting_planet:
             planet_density = (3*sp[i].m/(4*np.pi*sp[i].r**3))
-            sp[i].m = mass_growth(time,sp[i].m,doubling_time)
+            sp[i].m = mass_growth(acc_time,sp[i].m,doubling_time)
             sp[i].r = (3*sp[i].m/(4*np.pi*sp[i].r))**(1./3.)
         sim.move_to_com()
     return
