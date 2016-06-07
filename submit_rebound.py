@@ -218,7 +218,7 @@ def integrate(sim,times,outfile):
                     finalstatus[mid-1]=statuscode['eject']
                     #print "final status",mid,"eject"
                 elif max_d2>100:
-                    orbit=particle.orbit
+                    orbit=peject.orbit
                     if orbit.e>1:
                         print mid
                         end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
