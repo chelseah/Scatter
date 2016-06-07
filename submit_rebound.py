@@ -51,9 +51,10 @@ def integrate(sim,times,outfile):
     Ncurrent = sim.N
     dEs=np.zeros(len(times))
     for j,time in enumerate(times):
+        print j,time
         try:
             if addmass: 
-                add_mass(sim,time)
+                add_mass(sim,acc_time)
 
             sim.integrate(time)
             #deal with Escape
@@ -196,11 +197,12 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     #sim.exit_min_distance = 0.01
     #print sim.collisions[0]
 
-    ####create linear time step arr#
-    N_acc = t_max/acc_time
-    times=np.linspace(0,t_max*2*np.pi,N_acc)
-    #################################
-    #times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
+
+
+    times = np.linspace(t,t+t_max*2*np.pi,Noutputs)
+    #print t,t_max
+    #print times
+    #return
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration
@@ -243,10 +245,10 @@ def main(start=1):
         dt = P_inner/10./365.*2.*np.pi 
         HSRarr = np.linspace(minpowHSR,maxpowHSR,numHSR)
         repeat=int(nnodes/numHSR)
-        #print nnodes,repeat
+        print nnodes,repeat
         one_run(start,HSR=HSRarr[int((start-1)/repeat)],dt=dt)
     else:
-        one_run(start)
+        one_run(start,HSR=2,dt=0.0086072)
     return
 if __name__=='__main__':
     if len(sys.argv)==1:

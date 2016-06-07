@@ -19,7 +19,7 @@ N_pl = np.random.random_integers(6,10)
 
 #integration settings
 integrator="hybarid"
-t_max=1.e6*2.*np.pi
+t_max=1.0e6*(P_inner/365) 
 Noutputs=1000
 
 
@@ -40,9 +40,9 @@ binfile="checkpoint.txt"
 checkpoint=True
 
 #other flags
-debug=True
+debug=False
 addmass=False
-gridsearch=True
+gridsearch=False
 
 #
 statuscode={"eject":2,"star":3,"collision":1,"survive":0}
