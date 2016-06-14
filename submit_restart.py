@@ -13,7 +13,7 @@ def main():
             subfile=basename+"qsubrebound_%d" % i
             submit(basename,subfileauto="qsubrebound_%d" % i, start=1+max_runs*i)
             os.system('qsub %s' % subfile)
-        break
+        #break
     return
 
 

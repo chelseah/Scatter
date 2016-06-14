@@ -52,6 +52,8 @@ def integrate(sim,times,outfile):
     dEs=np.zeros(len(times))
     for j,time in enumerate(times):
         print j,time
+        if time<sim.t:
+            continue
         try:
             if addmass: 
                 add_mass(sim,acc_time)
@@ -199,7 +201,8 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
 
 
 
-    times = np.linspace(t,t+t_max*2*np.pi,Noutputs)
+    #times = np.linspace(t,t+t_max*2*np.pi,Noutputs)
+    times = np.linspace(1000,t_max*2*np.pi,Noutputs)
     #print t,t_max
     #print times
     #return
