@@ -11,73 +11,17 @@ from scipy.stats import rayleigh
 import multiprocessing as mp
 import pickle
 
-def check_for_bad_dt(sim):
-    bad_dt = 0
 
-    par = sim.particles
-    p0 = sim.particles[0]                                      #star
-    p = sim.particles[1]                            #planet
-    dx = p.x - p0.x
-    dy = p.y - p0.y
-    dz = p.z - p0.z
-    mh = (p.m/(3*p0.m))**(1./3.)
-    rhill_p = mh*(dx*dx + dy*dy + dz*dz)**(0.5)               #hill radius planet
-    rh_sum = rhill_p
-    vmax = 0                                                  #max relative velocity squared
-    for i in xrange(2,sim.N):
-        dx_i = par[i].x - p0.x
-        dy_i = par[i].y - p0.y
-        dz_i = par[i].z - p0.z
-        mh_i = (par[i].m/(3*p0.m))**(1./3.)
-        rhill_p_i = mh_i*(dx_i*dx_i + dy_i*dy_i + dz_i*dz_i)**(0.5)
-        rh_sum+=rhill_p_i
-        dvx = par[i].vx - p.vx
-        dvy = par[i].vy - p.vy
-        dvz = par[i].vz - p.vz
-        v = (dvx*dvx + dvy*dvy + dvz*dvz)**(0.5)
-        print 'v',v,dvx,dvy,dvz
-        if v > vmax:
-            vmax = v
-    HSR = sim.ri_hybarid.switch_radius
-    min_dt = HSR*rh_sum / vmax
-    print 'vmax',vmax,HSR*rh_sum,min_dt,HSR
-    if(min_dt < 4*sim.dt):
-        bad_dt = 1                                           #factor of 4 for extra wiggle room
-    return bad_dt
-
-
-
-def set_hill(mass_pl):
-    #set up the giant planets so that they will be instable at one point
-    i_hill=0
-    a_pl=np.zeros(3)
-    while (a_pl[0]<1):
-        while (i_hill<1):
-            spacing=np.random.rand(3)
-            print 'spacing,',spacing
-            a_inner=a_min+(a_max-a_min)*np.random.rand()
-            a_max_i=a_max
-            print 'amax_i,',a_max_i
-            a_aux=a_inner+(a_max_i-a_inner)*spacing
-            print 'a_aux,',a_aux
-            a_pl=np.sort(a_aux)
-
-            R_hill_12=((mass_pl[0]+mass_pl[1])/3)**(1./3.)*(a_pl[0]+a_pl[1])/2.
-            R_hill_23=((mass_pl[1]+mass_pl[2])/3)**(1./3.)*(a_pl[1]+a_pl[2])/2.
-            diff_a_12=abs(a_pl[1]-a_pl[0])
-            diff_a_23=abs(a_pl[2]-a_pl[1])
-
-            if(diff_a_12>k_Hill*R_hill_12 and diff_a_23>k_Hill*R_hill_23):
-                break
-    return [a_inner,a_pl]
 
 def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
     #initialize a rebound run
     sim = rebound.Simulation()
     sim.t=t
     sim.add(m=1., r=0.005)
+    ids=np.arange(N_pl)+1
+    a_order=np.argsort(a_pl)
     for i in range(len(mass_pl)):
-        sim.add(m = mass_pl[i], r = r_pl[i], a=a_pl[i], e=e_pl[i], inc=i_pl[i], Omega=Omega_pl[i], omega=omega_pl[i], M = M_pl[i],id=(i+1))
+        sim.add(m = mass_pl[a_order[i]], r = r_pl[a_order[i]], a=a_pl[a_order[i]], e=e_pl[a_order[i]], inc=i_pl[a_order[i]], Omega=Omega_pl[a_order[i]], omega=omega_pl[a_order[i]], M = M_pl[a_order[i]],id=ids[a_order[i]])
     sim.move_to_com()
     return sim
 
@@ -121,64 +65,7 @@ def saveorbit(outfile,sim):
     fout.close()
     return
 
-def read_init(infile):
-    #need to reload orbit elements from end result of a file.
-    data=np.loadtxt(infile, skiprows=1)
-    t=data[:,0][0]
-    mass_pl=data[:,3]
-    r_pl=data[:,4]
-    a_pl=data[:,5]
-    e_pl=data[:,6]
-    i_pl=data[:,7]
-    Omega_pl=data[:,8]
-    omega_pl=data[:,9]
-    M_pl=data[:,10]
-    return [t,mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
-def init_orbit(randomstat=1):
-    #initial the basic param array for a system
-    mass_pl=np.zeros(N_pl)
-    a_pl=np.zeros(N_pl)
-    r_pl=np.zeros(N_pl) #changed to radius rather than density
-
-    #initial semi-major axis and masses of gas giant,
-    #in solar units
-    #fixed 
-    mass_pl[0]=1.e-3
-    mass_pl[1]=1.e-3
-    mass_pl[2]=1.e-3
-    #uniform in a mass range
-    #mass_pl[:3]=0.5+np.random.random(3)*1.5*1.e-3
-
-    a_inner,a_pl[:3]=set_hill(mass_pl[:3])
-    #a_pl[0]=1.91
-    #a_pl[1]=2.31
-    #a_pl[2]=1.07
-    #initial semi-major axis and masses of super earths,
-    #in solar units
-    M_earth=1./300./1000.
-    mass_pl[3]=5*M_earth
-    mass_pl[4]=10*M_earth
-    mass_pl[5]=15*M_earth
-
-    #need to move to setting file in the future
-    a_pl[3]=0.1
-    a_pl[4]=0.25
-    a_pl[5]=0.5
-
-    #need to modify in the future how this is set up
-    r_pl[:3]=5e-4
-    r_pl[3:]=1e-4
-
-    #set up other orbital elements
-    e_pl=rayleigh.rvs(scale=sigma_e,size=6,random_state=randomstat)
-    i_pl=rayleigh.rvs(scale=sigma_i,size=6,random_state=randomstat+1000)
-    np.random.seed(randomstat+2000)
-    omega_pl=2.*np.pi*np.random.rand(N_pl)
-    Omega_pl=2.*np.pi*np.random.rand(N_pl)
-    M_pl=2.*np.pi*np.random.rand(N_pl)
-
-    return [mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl]
 
 def integrate(sim,times,outfile):
     #the main integration routine
@@ -189,13 +76,15 @@ def integrate(sim,times,outfile):
     Ncurrent = sim.N
     dEs=np.zeros(len(times))
     for j,time in enumerate(times):
+        if sim.t>time:
+            continue
+        print j,time,Ncurrent,sim.t
         try:
             sim.integrate(time)
         #for p in sim.particles:
             #print p
             #deal with Escape
         except rebound.Escape as error:
-            #print error
             max_d2 = 0.
             peject=None
             #check distance to be >1000, or (e>1 and distance>100)
@@ -209,23 +98,37 @@ def integrate(sim,times,outfile):
                     peject=p
        
             if not peject is None:
-                if max_d2>1000:
-                    print mid
+                print np.sqrt(max_d2),mid
+                if np.sqrt(max_d2)>1000:
+                    #print mid
                     end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
                     sim.remove(id=mid)
                     nstep[mid-1]=int(sim.t/sim.dt)
                     Ncurrent-=1
                     finalstatus[mid-1]=statuscode['eject']
                     #print "final status",mid,"eject"
-                elif max_d2>100:
-                    orbit=peject.orbit
-                    if orbit.e>1:
-                        print mid
-                        end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
-                        sim.remove(id=mid)
-                        nstep[mid-1]=int(sim.t/sim.dt)
-                        Ncurrent-=1
-                        finalstatus[mid-1]=statuscode['eject']
+        max_d2 = 0.
+        peject=None
+        mid=0
+        #check distance to be >1000, or (e>1 and distance>100)
+        for p in sim.particles:
+            if p.id==0:
+                continue
+            d2 = p.x*p.x + p.y*p.y + p.z*p.z
+            if d2>max_d2:
+                max_d2 = d2
+                mid = p.id
+                peject=p
+
+            if np.sqrt(max_d2)>100:
+                orbit=peject.orbit
+                if orbit.e>1 or mid>3:
+                    #print mid
+                    end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
+                    sim.remove(id=mid)
+                    nstep[mid-1]=int(sim.t/sim.dt)
+                    Ncurrent-=1
+                    finalstatus[mid-1]=statuscode['eject']
 
         #deal with collision
         if Ncurrent>sim.N:
@@ -249,7 +152,7 @@ def integrate(sim,times,outfile):
             Ncurrent=sim.N
         #print orbit2str(sim.particles[1].orbit)
         for p in sim.particles:
-            print p.id
+            #print p.id
             if p.id==0:
                 continue
 
@@ -275,7 +178,10 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     #initialize the run
     t=0
     outfile=rundir+"rebound%.4d.txt" % runnumber
-    fout=open(outfile,"w")
+    if frombin:
+    	fout=open(outfile,"a")
+    else:
+    	fout=open(outfile,"w")
     fout.close()
     infofile=rundir+"runrebound%.4d.pkl" % runnumber
     if not frombin:
@@ -293,13 +199,19 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
         t=sim.t
     #return
     saveorbit(outfile,sim)#save the initial orbits to output file file
-    init=[]
+    init=np.zeros([N_pl,8])
     for p in sim.particles:
         if p.id==0:
             continue
         parr=np.array(list(orbit2str(p).split()),dtype='f8')
-        init.append(parr)
-    print init
+        init[p.id-1,:]=parr
+    
+    if checkpoint:
+        checkpointfile=rundir+"rebound%.4d.initbin" % runnumber
+        sim.save(checkpointfile)
+
+    #print init
+    #return
     #fig = rebound.OrbitPlot(sim)
 
 
@@ -329,13 +241,14 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     sim.collisions_track_dE = 1
 
     #set up escape options
-    sim.exit_max_distance = 100.
+    sim.exit_max_distance = 1000.
     #sim.exit_min_distance = 0.01
     #print sim.collisions[0]
 
 
 
-    times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
+    #times = np.logspace(np.log10(t+1000),np.log10(t+t_max),Noutputs)
+    times = np.logspace(np.log10(1000),np.log10(t_max),Noutputs)
     E0 = sim.calculate_energy()
     start_t = timing.time()
     #call integration
