@@ -96,7 +96,7 @@ def integrate(sim,times,outfile):
                     max_d2 = d2
                     mid = p.id
                     peject=p
-       
+
             if not peject is None:
                 print np.sqrt(max_d2),mid
                 if np.sqrt(max_d2)>1000:
@@ -163,7 +163,7 @@ def integrate(sim,times,outfile):
         if checkpoint:
             checkpointfile=os.path.splitext(outfile)[0]+'.bin'
             sim.save(checkpointfile)
-    
+
 
         #bad_dts[j] = check_for_bad_dt(sim)
     	dEs[j] = sim.calculate_energy()
