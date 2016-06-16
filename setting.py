@@ -27,13 +27,13 @@ subfile="qsubrebound"
 #integration settings
 integrator="ias15"
 t_max=1.e6*2.*np.pi
-Noutputs=1000
+Noutputs=10000
 
 #restart settings
-restartinput="testeject.txt"
+restartinput="tempinput.txt"
 #restart from binary file
 frombin=False
-binfile="checkpoint.txt"
+binfile=""
 
 #output settings
 checkpoint=True

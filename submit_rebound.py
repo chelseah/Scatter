@@ -10,7 +10,7 @@ import sys
 from scipy.stats import rayleigh
 import multiprocessing as mp
 import pickle
-
+from init import read_init,init_orbit
 
 
 def callrebound(mass_pl,a_pl,r_pl,e_pl,i_pl,omega_pl,Omega_pl,M_pl,t=0):
@@ -120,15 +120,16 @@ def integrate(sim,times,outfile):
                 mid = p.id
                 peject=p
 
-            if np.sqrt(max_d2)>100:
-                orbit=peject.orbit
-                if orbit.e>1 or mid>3:
-                    #print mid
-                    end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
-                    sim.remove(id=mid)
-                    nstep[mid-1]=int(sim.t/sim.dt)
-                    Ncurrent-=1
-                    finalstatus[mid-1]=statuscode['eject']
+        if (not peject is None) and (np.sqrt(max_d2)>100):
+           print np.sqrt(max_d2),mid
+           orbit=peject.orbit
+           if orbit.e>1 or mid>3:
+               #print mid
+               end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
+               sim.remove(id=mid)
+               nstep[mid-1]=int(sim.t/sim.dt)
+               Ncurrent-=1
+               finalstatus[mid-1]=statuscode['eject']
 
         #deal with collision
         if Ncurrent>sim.N:
@@ -194,7 +195,8 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     else:
         if st.binfile=="":
             binfile=rundir+"rebound%.4d.bin" % runnumber
-
+        else:
+            binfile=st.binfile
         sim=rebound.Simulation.from_file(binfile)
         t=sim.t
     #return
