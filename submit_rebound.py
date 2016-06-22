@@ -208,9 +208,14 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
         parr=np.array(list(orbit2str(p).split()),dtype='f8')
         init[p.id-1,:]=parr
     
-    if checkpoint:
-        checkpointfile=rundir+"rebound%.4d.initbin" % runnumber
-        sim.save(checkpointfile)
+    if checkpoint: 
+        if not frombin:
+            checkpointfile=rundir+"rebound%.4d.initbin" % runnumber
+            sim.save(checkpointfile)
+        else:
+            checkpointfile=rundir+"rebound%.4d.restartbin" % runnumber
+            sim.save(checkpointfile)
+
 
     #print init
     #return
@@ -272,7 +277,7 @@ def one_run(runnumber,infile="",HSR=None,dt=None):
     for p in sim.particles:
         if p.id==0:
             continue
-        if p.m<0.5e-3:
+        if p.m<7.e-5:
             necount+=1
         nstep[p.id-1]=int(sim.t/sim.dt)
 
