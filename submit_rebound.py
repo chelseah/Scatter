@@ -103,6 +103,7 @@ def integrate(sim,times,outfile):
                     #print mid
                     end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
                     sim.remove(id=mid)
+                    sim.move_to_com()
                     nstep[mid-1]=int(sim.t/sim.dt)
                     Ncurrent-=1
                     finalstatus[mid-1]=statuscode['eject']
@@ -127,6 +128,7 @@ def integrate(sim,times,outfile):
                #print mid
                end[mid-1,:]=np.array(list(orbit2str(peject).split()),dtype='f8')
                sim.remove(id=mid)
+               sim.move_to_com()
                nstep[mid-1]=int(sim.t/sim.dt)
                Ncurrent-=1
                finalstatus[mid-1]=statuscode['eject']
